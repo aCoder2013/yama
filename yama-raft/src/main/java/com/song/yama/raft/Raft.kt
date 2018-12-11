@@ -40,7 +40,6 @@ import com.song.yama.raft.protobuf.RaftProtoBuf
 import com.song.yama.raft.protobuf.RaftProtoBuf.*
 import com.song.yama.raft.utils.ErrorCode
 import com.song.yama.raft.utils.Utils
-import com.song.yama.server.protocol.raft.ReadState
 import mu.KotlinLogging
 import org.apache.commons.collections4.CollectionUtils
 import org.apache.commons.lang3.RandomUtils
