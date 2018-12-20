@@ -24,7 +24,13 @@ import java.nio.channels.FileLock;
 
 public class NativeFileLock {
 
-    public static void lock(String path, Runnable runnable) throws IOException{
+    /**
+     * Attempts to acquire an exclusive file lock
+     *
+     * @param path file path
+     * @param runnable code snippet to run when acquired the lock
+     */
+    public static void lock(String path, Runnable runnable) throws IOException {
         RandomAccessFile randomAccessFile = null;
         FileChannel channel = null;
         FileLock fileLock = null;
