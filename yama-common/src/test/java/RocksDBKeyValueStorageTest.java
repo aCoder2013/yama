@@ -14,11 +14,10 @@
  *  limitations under the License.
  */
 
-package com.song.yama.server.storage.impl;
-
 import static org.junit.Assert.assertEquals;
 
-import com.song.yama.server.storage.KeyValueStorage;
+import com.song.yama.common.storage.KeyValueStorage;
+import com.song.yama.common.storage.impl.RocksDBKeyValueStorage;
 import java.io.IOException;
 import org.junit.After;
 import org.junit.Before;

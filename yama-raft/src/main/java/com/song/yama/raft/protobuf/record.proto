@@ -1,0 +1,22 @@
+syntax = "proto2";
+
+option java_package = "com.song.yama.raft.protobuf";
+option java_outer_classname = "WALRecord";
+
+enum RecordType {
+  Metadata = 1;
+  State = 2;
+  snapshot = 3;
+  Entry = 4;
+}
+
+message Record {
+  optional int64 type = 1;
+  optional uint32 crc = 2;
+  optional bytes data = 3;
+}
+
+message Snapshot {
+  optional uint64 index = 1;
+  optional uint64 term = 2;
+}

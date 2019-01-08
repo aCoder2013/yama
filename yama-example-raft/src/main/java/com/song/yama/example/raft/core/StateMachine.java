@@ -14,20 +14,8 @@
  *  limitations under the License.
  */
 
-package com.song.yama.example.raft.properties;
+package com.song.yama.example.raft.core;
 
-import lombok.Getter;
-import lombok.Setter;
-import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.context.annotation.Configuration;
+public interface StateMachine {
 
-@Getter
-@Setter
-@Configuration
-@ConfigurationProperties("com.song.yama.raft")
-public class RaftProperties {
-
-    private Long id;
-
-    private String servers;
 }

@@ -14,20 +14,20 @@
  *  limitations under the License.
  */
 
-package com.song.yama.example.raft.properties;
+package com.song.yama.raft.wal.utils;
 
-import lombok.Getter;
-import lombok.Setter;
-import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.context.annotation.Configuration;
+public interface Constants {
 
-@Getter
-@Setter
-@Configuration
-@ConfigurationProperties("com.song.yama.raft")
-public class RaftProperties {
+    int OS_PAGE_SIZE = 1024 * 4;
 
-    private Long id;
+    int COMMIT_LOG_FILE_SIZE = 512 * 1024 * 1024; // 512MB
 
-    private String servers;
+    /**
+     * File at the end of the minimum fixed length empty
+     */
+    int END_FILE_MIN_BLANK_LENGTH = 8;
+
+    int RECORD_MAGIC_CODE = 0xecbde;
+
+    int DEFAULT_WRITE_BUFFER_SIZE = 65536; //64KB
 }

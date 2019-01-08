@@ -16,6 +16,34 @@
 
 package com.song.yama.storage.utils;
 
+import com.google.common.collect.Lists;
+import java.io.File;
+import java.util.Collections;
+import java.util.List;
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 public class IOUtils {
 
+    public static List<String> listNames(File file, String suffix) {
+        if (file != null && file.isDirectory()) {
+            String[] list = file.list((dir, name) -> name.endsWith(suffix));
+            if (list != null) {
+                return Lists.newArrayList(list);
+            }
+        }
+        return Collections.emptyList();
+    }
+
+    public static void ensureDirOK(String dir) {
+        if (dir != null && !dir.equals("")) {
+            File file = new File(dir);
+            if (file.isDirectory()) {
+                if (!file.exists()) {
+                    boolean result = file.mkdir();
+                    log.info("Create dir [{}] result : {}.", dir, result);
+                }
+            }
+        }
+    }
 }

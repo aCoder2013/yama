@@ -14,20 +14,24 @@
  *  limitations under the License.
  */
 
-package com.song.yama.example.raft.properties;
+package com.song.yama.common.storage;
 
-import lombok.Getter;
-import lombok.Setter;
-import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.context.annotation.Configuration;
+import java.io.Closeable;
+import java.io.IOException;
 
-@Getter
-@Setter
-@Configuration
-@ConfigurationProperties("com.song.yama.raft")
-public class RaftProperties {
+/**
+ * A generic key-value local database.
+ */
+public interface KeyValueStorage extends Closeable {
 
-    private Long id;
+    void put(byte[] key, byte[] value) throws IOException;
 
-    private String servers;
+    byte[] get(byte[] key) throws IOException;
+
+    void delete(byte[] key) throws IOException;
+
+    /**
+     * Commit all pending write to durable storage.
+     */
+    void sync() throws IOException;
 }

@@ -14,9 +14,9 @@
  *  limitations under the License.
  */
 
-package com.song.yama.server.storage.impl;
+package com.song.yama.common.storage.impl;
 
-import com.song.yama.server.storage.KeyValueStorage;
+import com.song.yama.common.storage.KeyValueStorage;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;

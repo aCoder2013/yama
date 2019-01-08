@@ -18,15 +18,16 @@ package com.song.yama.example.raft.storage;
 
 import com.song.yama.raft.protobuf.RaftProtoBuf;
 import com.song.yama.raft.protobuf.RaftProtoBuf.Snapshot;
+import java.io.IOException;
 import java.util.List;
 
 public interface SnapshotStorage {
 
-    void save(RaftProtoBuf.Snapshot snapshot);
+    void save(RaftProtoBuf.Snapshot snapshot) throws IOException;
 
     Snapshot load();
 
-    Snapshot read(String name);
+    Snapshot read(String name) throws IOException;
 
     List<String> names();
 }

@@ -46,7 +46,15 @@ public enum ErrorCode {
     // so that the proposer can be notified and fail fast.
     ErrProposalDropped(1006, "raft proposal dropped"),
 
-    UNKOWN(9999, "unknown exception"),;
+    ErrExist(1007, "file already exists"),
+    ErrEndOfFile(1008, "end of file"),
+    ErrReadFromBufferedChannel(1009, "IO error while reading from buffered channel"),
+    ErrInvalidVersion(1010, "Invalid version"),
+    ErrBrokenFile(1011, "file is broken"),
+    ErrInvalidCrc(1012, "crc check failed"),
+    ErrFlushChannel(1013, "flush channel failed"),
+
+    UNKNOWN(9999, "unknown exception"),;
 
     private int code;
 
@@ -65,11 +73,11 @@ public enum ErrorCode {
         return desc;
     }
 
-    public static ErrorCode getByCode(int code){
-        return getByCode(code, ErrorCode.UNKOWN);
+    public static ErrorCode getByCode(int code) {
+        return getByCode(code, ErrorCode.UNKNOWN);
     }
 
-    public static ErrorCode getByCode(int code,ErrorCode defaultValue) {
+    public static ErrorCode getByCode(int code, ErrorCode defaultValue) {
         for (ErrorCode errorCode : values()) {
             if (errorCode.getCode() == code) {
                 return errorCode;
@@ -78,6 +86,5 @@ public enum ErrorCode {
 
         return defaultValue;
     }
-
 
 }

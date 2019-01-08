@@ -142,7 +142,7 @@ public class Ready {
             || CollectionUtils.isNotEmpty(this.readStates);
     }
 
-    public boolean mustSync(HardState st, HardState prevst, int entsnum) {
+    public static boolean mustSync(HardState st, HardState prevst, int entsnum) {
         return entsnum != 0 || st.getVote() != prevst.getVote() || st.getTerm() != prevst.getTerm();
     }
 }

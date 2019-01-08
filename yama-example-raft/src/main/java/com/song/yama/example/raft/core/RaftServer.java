@@ -14,24 +14,10 @@
  *  limitations under the License.
  */
 
-package com.song.yama.server.storage;
+package com.song.yama.example.raft.core;
 
-import java.io.Closeable;
-import java.io.IOException;
+public class RaftServer {
 
-/**
- * A generic key-value local database.
- */
-public interface KeyValueStorage extends Closeable {
 
-    void put(byte[] key, byte[] value) throws IOException;
 
-    byte[] get(byte[] key) throws IOException;
-
-    void delete(byte[] key) throws IOException;
-
-    /**
-     * Commit all pending write to durable storage.
-     */
-    void sync() throws IOException;
 }

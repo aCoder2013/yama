@@ -14,20 +14,20 @@
  *  limitations under the License.
  */
 
-package com.song.yama.example.raft.properties;
+package com.song.yama.raft.wal;
 
-import lombok.Getter;
-import lombok.Setter;
-import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.context.annotation.Configuration;
+import com.song.yama.raft.protobuf.RaftProtoBuf.Entry;
+import com.song.yama.raft.protobuf.RaftProtoBuf.HardState;
+import java.util.List;
+import lombok.Data;
 
-@Getter
-@Setter
-@Configuration
-@ConfigurationProperties("com.song.yama.raft")
-public class RaftProperties {
+@Data
+public class RaftStateRecord {
 
-    private Long id;
+    private HardState hardState;
 
-    private String servers;
+    private List<Entry> ents;
+
+    private byte[] metadata;
+
 }

@@ -14,20 +14,25 @@
  *  limitations under the License.
  */
 
-package com.song.yama.example.raft.properties;
+package com.song.yama.common.utils;
 
-import lombok.Getter;
-import lombok.Setter;
-import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.context.annotation.Configuration;
+import com.google.common.hash.Hashing;
+import java.util.zip.CRC32;
 
-@Getter
-@Setter
-@Configuration
-@ConfigurationProperties("com.song.yama.raft")
-public class RaftProperties {
+public class CrcUtils {
 
-    private Long id;
+    public static int crc32(byte[] array) {
+        if (array != null) {
+            return crc32(array, 0, array.length);
+        }
 
-    private String servers;
+        return 0;
+    }
+
+    public static int crc32(byte[] array, int offset, int length) {
+        CRC32 crc32 = new CRC32();
+        crc32.update(array, offset, length);
+        return (int) (crc32.getValue() & 0x7FFFFFFF);
+    }
+
 }

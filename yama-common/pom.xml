@@ -10,4 +10,16 @@
   <modelVersion>4.0.0</modelVersion>
 
   <artifactId>yama-common</artifactId>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.rocksdb</groupId>
+      <artifactId>rocksdbjni</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-collections4</artifactId>
+    </dependency>
+  </dependencies>
 </project>
