@@ -37,6 +37,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import com.song.yama.common.storage.KeyValueStorage;
 import com.song.yama.common.storage.impl.RocksDBKeyValueStorage;
 import com.song.yama.common.utils.Result;
+import com.song.yama.raft.protobuf.RaftProtoBuf;
 import com.song.yama.raft.protobuf.RaftProtoBuf.Entry;
 import com.song.yama.raft.protobuf.RaftProtoBuf.HardState;
 import com.song.yama.raft.protobuf.WALRecord;
@@ -123,11 +124,13 @@ public class RocksDBCommitLog implements CommitLog {
     }
 
     @Override
-    public Result<RaftStateRecord> readAll(Snapshot snapshot) {
+    public Result<RaftStateRecord> readAll(RaftProtoBuf.Snapshot snapshot) {
         RaftStateRecord raftStateRecord = new RaftStateRecord();
         try {
             byte[] data = this.keyValueStorage
-                .get(String.format(SNAPSHOT_KEY_PREFIX, snapshot.getTerm(), snapshot.getIndex()).getBytes());
+                .get(String
+                    .format(SNAPSHOT_KEY_PREFIX, snapshot.getMetadata().getTerm(), snapshot.getMetadata().getIndex())
+                    .getBytes());
             if (data == null || data.length == 0) {
                 return Result.fail("Snapshot not exist");
             }

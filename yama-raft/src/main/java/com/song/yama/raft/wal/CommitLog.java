@@ -33,10 +33,10 @@
 package com.song.yama.raft.wal;
 
 import com.song.yama.common.utils.Result;
+import com.song.yama.raft.protobuf.RaftProtoBuf;
 import com.song.yama.raft.protobuf.RaftProtoBuf.Entry;
 import com.song.yama.raft.protobuf.RaftProtoBuf.HardState;
 import com.song.yama.raft.protobuf.WALRecord;
-import com.song.yama.raft.protobuf.WALRecord.Snapshot;
 import java.io.Closeable;
 import java.util.List;
 
@@ -52,5 +52,5 @@ public interface CommitLog extends Closeable {
 
     Result<Void> saveSnap(WALRecord.Snapshot snapshot);
 
-    Result<RaftStateRecord> readAll(Snapshot snapshot);
+    Result<RaftStateRecord> readAll(RaftProtoBuf.Snapshot snapshot);
 }

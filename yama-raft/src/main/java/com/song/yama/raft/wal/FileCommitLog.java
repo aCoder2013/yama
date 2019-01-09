@@ -33,11 +33,11 @@ package com.song.yama.raft.wal;
 import com.google.protobuf.ByteString;
 import com.song.yama.common.utils.Result;
 import com.song.yama.raft.Ready;
+import com.song.yama.raft.protobuf.RaftProtoBuf;
 import com.song.yama.raft.protobuf.RaftProtoBuf.Entry;
 import com.song.yama.raft.protobuf.RaftProtoBuf.HardState;
 import com.song.yama.raft.protobuf.WALRecord;
 import com.song.yama.raft.protobuf.WALRecord.Record;
-import com.song.yama.raft.protobuf.WALRecord.Snapshot;
 import com.song.yama.raft.utils.ErrorCode;
 import com.song.yama.raft.wal.utils.Constants;
 import com.song.yama.raft.wal.utils.Utils;
@@ -173,7 +173,7 @@ public class FileCommitLog implements CommitLog {
     }
 
     @Override
-    public Result<RaftStateRecord> readAll(Snapshot snapshot) {
+    public Result<RaftStateRecord> readAll(RaftProtoBuf.Snapshot snapshot) {
         Result<List<Record>> result = this.commitLogSegment.getRecords();
         if (result.isFailure()) {
             return Result.fail(result.getCode(), result.getMessage());

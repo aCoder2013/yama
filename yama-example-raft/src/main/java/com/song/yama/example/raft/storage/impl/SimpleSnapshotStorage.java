@@ -21,6 +21,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.io.Files;
 import com.song.yama.example.raft.exception.ErrNoSnapshotException;
 import com.song.yama.example.raft.storage.SnapshotStorage;
+import com.song.yama.raft.exception.RaftException;
 import com.song.yama.raft.protobuf.RaftProtoBuf.Snapshot;
 import com.song.yama.raft.utils.Utils;
 import java.io.File;
@@ -65,9 +66,10 @@ public class SimpleSnapshotStorage implements SnapshotStorage {
                 }
             } catch (IOException e) {
                 log.warn("Failed to read snap file:" + path, e);
+                throw new RaftException("Failed to read snap", e);
             }
         }
-        throw new ErrNoSnapshotException();
+        return null;
     }
 
     @Override
