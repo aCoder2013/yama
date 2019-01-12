@@ -58,6 +58,12 @@ public class DefaultNode implements Node {
 
     private HardState preHardState;
 
+    public DefaultNode(RaftConfiguration configuration) {
+        checkArgument(configuration != null);
+        checkArgument(configuration.getId() != 0);
+        this.raft = new Raft(configuration);
+    }
+
     /**
      * StartNode returns a new Node given configuration and a list of raft peers. It appends a ConfChangeAddNode entry
      * for each given peer to the initial log.

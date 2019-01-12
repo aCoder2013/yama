@@ -126,7 +126,7 @@ public class RaftNode {
                 this.raftStorage.append(ents);
                 this.lastIndex = ents.get(ents.size() - 1).getIndex();
             }
-            //TODO:trigger commit
+            //TODO: maybe trigger commit
         }
 
         List<Peer> rpeers = new ArrayList<>();
@@ -142,7 +142,7 @@ public class RaftNode {
         raftConfiguration.setMaxSizePerMsg(1024 * 1024);
         raftConfiguration.setMaxInflightMsgs(256);
         if (snapshot != null) {
-            //TODO:add support for restarting raft cluster
+            this.node = new DefaultNode(raftConfiguration);
         } else {
             List<Peer> startPeers = rpeers;
             if (this.join) {
@@ -150,5 +150,8 @@ public class RaftNode {
             }
             this.node = new DefaultNode(raftConfiguration, startPeers);
         }
+
+        //TODO:add network module
+
     }
 }
