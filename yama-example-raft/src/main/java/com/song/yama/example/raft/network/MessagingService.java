@@ -14,22 +14,14 @@
  *  limitations under the License.
  */
 
-package com.song.yama.example.raft.properties;
+package com.song.yama.example.raft.network;
 
-import lombok.Getter;
-import lombok.Setter;
-import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.context.annotation.Configuration;
+import com.song.yama.raft.protobuf.RaftProtoBuf.Message;
+import java.util.List;
 
-@Getter
-@Setter
-@Configuration
-@ConfigurationProperties("com.song.yama.raft")
-public class RaftProperties {
+public interface MessagingService extends AutoCloseable {
 
-    private int id;
+    void start();
 
-    private String servers;
-
-    private boolean join;
+    void send(List<Message> messages);
 }

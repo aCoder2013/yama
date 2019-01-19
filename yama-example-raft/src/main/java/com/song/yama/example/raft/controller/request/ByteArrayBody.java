@@ -14,22 +14,12 @@
  *  limitations under the License.
  */
 
-package com.song.yama.example.raft.properties;
+package com.song.yama.example.raft.controller.request;
 
-import lombok.Getter;
-import lombok.Setter;
-import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.context.annotation.Configuration;
+import lombok.Data;
 
-@Getter
-@Setter
-@Configuration
-@ConfigurationProperties("com.song.yama.raft")
-public class RaftProperties {
+@Data
+public class ByteArrayBody {
 
-    private int id;
-
-    private String servers;
-
-    private boolean join;
+    private byte[] data;
 }
