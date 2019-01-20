@@ -376,7 +376,7 @@ open class Raft(private val raftConfiguration: RaftConfiguration) {
     }
 
 
-    fun step(message: Message) :ErrorCode{
+    fun step(message: Message): ErrorCode {
         // Handle the message term, which may result in our stepping down to a follower.
 
         val messageType = message.type
@@ -453,7 +453,7 @@ open class Raft(private val raftConfiguration: RaftConfiguration) {
                         .setType(MessageType.MsgPreVoteResp).setReject(true))
             } else {
                 // ignore other cases
-                log.info("{} [term: {}] ignored a {} message with lower term from {} [term: {}]",
+                log.debug("{} [term: {}] ignored a {} message with lower term from {} [term: {}]",
                         this.id, this.term, messageType, message.from, message.term)
             }
             return ErrorCode.OK
@@ -549,20 +549,20 @@ open class Raft(private val raftConfiguration: RaftConfiguration) {
                     return stepFollower(message)
                 }
                 StateType.LEADER -> {
-                   return stepLeader(message)
+                    return stepLeader(message)
                 }
             }
         }
         return ErrorCode.OK
     }
 
-    open fun stepLeader(m: RaftProtoBuf.Message) :ErrorCode{
+    open fun stepLeader(m: RaftProtoBuf.Message): ErrorCode {
 
         // These message types do not require any progress for m.From.
         when (m.type) {
             MessageType.MsgBeat -> {
                 bcastHeartbeat()
-                return  ErrorCode.OK
+                return ErrorCode.OK
             }
             MessageType.MsgCheckQuorum -> {
                 if (!checkQuorumActive()) {
@@ -1413,10 +1413,15 @@ open class Raft(private val raftConfiguration: RaftConfiguration) {
     }
 
     fun bcastAppend() {
-        forEachProgress(BiConsumer { id, progress ->
-            run {
-                if (id == this.id) {
-                    return@BiConsumer
+        log.info {
+            "bcastAppend"
+        }
+        forEachProgress(BiConsumer { id, _ ->
+            if (id == this.id) {
+                log.info { "skip send to myself" }
+            } else {
+                log.info {
+                    "Send message to $id"
                 }
                 sendAppend(id)
             }

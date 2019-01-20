@@ -16,6 +16,7 @@
 
 package com.song.yama.example.raft.core;
 
+import com.google.protobuf.InvalidProtocolBufferException;
 import com.song.yama.common.utils.Result;
 import com.song.yama.example.raft.network.MessagingService;
 import com.song.yama.example.raft.properties.RaftProperties;
@@ -29,8 +30,11 @@ import com.song.yama.raft.RaftConfiguration;
 import com.song.yama.raft.RaftStorage;
 import com.song.yama.raft.Ready;
 import com.song.yama.raft.exception.RaftException;
+import com.song.yama.raft.protobuf.RaftProtoBuf.ConfChange;
+import com.song.yama.raft.protobuf.RaftProtoBuf.ConfChangeType;
 import com.song.yama.raft.protobuf.RaftProtoBuf.ConfState;
 import com.song.yama.raft.protobuf.RaftProtoBuf.Entry;
+import com.song.yama.raft.protobuf.RaftProtoBuf.EntryType;
 import com.song.yama.raft.protobuf.RaftProtoBuf.Message;
 import com.song.yama.raft.protobuf.RaftProtoBuf.Snapshot;
 import com.song.yama.raft.protobuf.WALRecord;
@@ -46,11 +50,15 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.PostConstruct;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.io.FileUtils;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -62,11 +70,13 @@ public class RaftNode {
     /**
      * client ID for raft session
      */
+    @Getter
     private int id;
 
     /**
      * raft peer URLs
      */
+    @Getter
     private List<String> peers;
 
     /**
@@ -96,12 +106,14 @@ public class RaftNode {
     private long appliedIndex;
 
     /* raft */
+    @Getter
     private Node node;
 
     private RaftStorage raftStorage;
 
     private CommitLog commitLog;
 
+    @Getter
     private SnapshotStorage snapshotStorage;
 
     private ExecutorService taskThreadPool = Executors.newFixedThreadPool(2, new ThreadFactory() {
@@ -114,6 +126,8 @@ public class RaftNode {
             return thread;
         }
     });
+
+    private ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
 
     /* spring managed beans */
     @Autowired
@@ -130,16 +144,10 @@ public class RaftNode {
         this.id = this.raftProperties.getId();
         this.peers = new ArrayList<>(Arrays.asList(this.raftProperties.getServers().split(";")));
         this.join = this.raftProperties.isJoin();
-        this.stateMachine = stateMachine;
-        //maybe this should be rocksdb path?
         this.waldir = String.format(System.getProperty("user.home") + "/yama/data/rocksdb/wal-%d", id);
+        FileUtils.forceMkdir(new File(this.waldir));
         this.snapdir = String.format(System.getProperty("user.home") + "/yama/data/snap-%d", id);
-        File snap = new File(snapdir);
-        if (!snap.exists()) {
-            if (!snap.mkdirs()) {
-                throw new RuntimeException("Failed to create snap dir :" + snapdir);
-            }
-        }
+        FileUtils.forceMkdir(new File(this.snapdir));
 
         this.snapshotStorage = new SimpleSnapshotStorage(snapdir);
         this.commitLog = new RocksDBCommitLog(this.waldir);
@@ -185,30 +193,102 @@ public class RaftNode {
             this.node = new DefaultNode(raftConfiguration, startPeers);
         }
 
-        this.taskThreadPool.submit(() -> {
+        Result<Snapshot> snap = this.raftStorage.snapshot();
+        if (snap.isFailure()) {
+            throw new RaftException("Load snap failed:" + snap.getMessage());
+        }
+        this.confState = snap.getData().getMetadata().getConfState();
+        this.snapshotIndex = snap.getData().getMetadata().getIndex();
+        this.appliedIndex = snap.getData().getMetadata().getIndex();
+
+        this.scheduledExecutorService.scheduleAtFixedRate(() -> {
+            this.node.tick();
+        }, 100, 100, TimeUnit.MILLISECONDS);
+
+        new Thread(() -> {
             while (true) {
-                Ready ready = this.node.pullReady();
-                this.commitLog.save(ready.getHardState(), ready.getCommittedEntries());
-                if (!Utils.isEmptySnap(ready.getSnapshot())) {
-                    saveSnap(ready.getSnapshot());
-                    this.raftStorage.applySnapshot(ready.getSnapshot());
-                    //publishSnapshot(rd.Snapshot)
-                }
-                this.raftStorage.append(ready.getEntries());
-                this.messagingService.send(ready.getMessages());
-                //TODO:biz state machine
-//                if ok := rc.publishEntries(rc.entriesToApply(rd.CommittedEntries)); !ok {
-//                    rc.stop()
-//                    return
-//                }
+                try {
+                    Ready ready = this.node.pullReady();
+                    this.commitLog.save(ready.getHardState(), ready.getCommittedEntries());
+                    if (!Utils.isEmptySnap(ready.getSnapshot())) {
+                        saveSnap(ready.getSnapshot());
+                        this.raftStorage.applySnapshot(ready.getSnapshot());
+                        publishSnapshot(ready.getSnapshot());
+                    }
+                    this.raftStorage.append(ready.getEntries());
+                    this.messagingService.send(ready.getMessages());
+                    publishEntries(entriesToApply(ready.getCommittedEntries()));
+                    //TODO:when to trigger snapshot
 //                rc.maybeTriggerSnapshot()
-                this.node.advance(ready);
+                    this.node.advance(ready);
+                    try {
+                        Thread.sleep(100);
+                    } catch (InterruptedException e) {
+                        log.error(e.getMessage(), e);
+                    }
+                }catch (Exception e){
+                    log.error("Process ready failed", e);
+                }
             }
-        });
+        }).start();
+
+//        this.taskThreadPool.execute(() -> {
+//
+//        });
     }
 
     public void processMessage(Message message) {
         this.node.step(message);
+    }
+
+    private void publishEntries(List<Entry> entries) {
+        if (CollectionUtils.isEmpty(entries)) {
+            return;
+        }
+        entries.forEach(entry -> {
+            if (entry.getType() == EntryType.EntryNormal) {
+                if (entry.getData() == null || entry.getData().isEmpty()) {
+                }else {
+                    String content = entry.getData().toStringUtf8();
+                    this.stateMachine.processCommits(content);
+                }
+            } else if (entry.getType() == EntryType.EntryConfChange) {
+                try {
+                    ConfChange confChange = ConfChange.newBuilder().mergeFrom(entry.getData().toByteArray()).build();
+                    this.node.applyConfChange(confChange);
+                    //TODO:support cluster node change
+                    if (confChange.getType() == ConfChangeType.ConfChangeAddNode) {
+                    } else if (confChange.getType() == ConfChangeType.ConfChangeRemoveNode) {
+
+                    }
+                } catch (InvalidProtocolBufferException e) {
+                    log.error("Decode ConfChange failed", e);
+                    throw new RaftException("Invalid ConfChange record", e);
+                }
+            }
+
+            this.appliedIndex = entry.getIndex();
+            if (entry.getIndex() == this.lastIndex) {
+                this.stateMachine.loadSnapshot();
+            }
+        });
+    }
+
+    private void publishSnapshot(Snapshot snapshotToSave) {
+        if (Utils.isEmptySnap(snapshotToSave)) {
+            return;
+        }
+        log.info("publishing snapshot at index {}", this.snapshotIndex);
+        if (snapshotToSave.getMetadata().getIndex() <= this.appliedIndex) {
+            throw new RaftException(String.format("snapshot index [%d] should > progress.appliedIndex [%d]",
+                snapshotToSave.getMetadata().getIndex(), this.appliedIndex));
+        }
+
+        this.stateMachine.loadSnapshot();
+        this.confState = snapshotToSave.getMetadata().getConfState();
+        this.snapshotIndex = snapshotToSave.getMetadata().getIndex();
+        this.appliedIndex = snapshotToSave.getMetadata().getIndex();
+        log.info("publishing snapshot at index {}", this.snapshotIndex);
     }
 
     private synchronized void saveSnap(Snapshot snapshot) {

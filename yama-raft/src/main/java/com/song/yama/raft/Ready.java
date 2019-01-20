@@ -38,6 +38,8 @@ import com.song.yama.raft.protobuf.RaftProtoBuf.HardState;
 import com.song.yama.raft.protobuf.RaftProtoBuf.Message;
 import com.song.yama.raft.protobuf.RaftProtoBuf.Snapshot;
 import com.song.yama.raft.utils.Utils;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import lombok.Data;
 import org.apache.commons.collections4.CollectionUtils;
@@ -60,7 +62,7 @@ public class Ready {
      * The current state of a Node to be saved to stable storage BEFORE Messages are sent. HardState will be equal to
      * empty state if there is no update.
      */
-    private HardState hardState;
+    private HardState hardState = HardState.getDefaultInstance();
 
     /**
      * ReadStates can be used for node to serve linearizable read requests locally when its applied index is greater
@@ -104,8 +106,12 @@ public class Ready {
     public Ready(Raft raft, SoftState preSoftSt, HardState preHardSt) {
         this.entries = raft.getRaftLog().unstableEntries();
         this.committedEntries = raft.getRaftLog().nextEnts();
-        this.messages = raft.getMsgs();
-
+        if(CollectionUtils.isNotEmpty(raft.getMsgs())){
+            this.messages = raft.getMsgs();
+            raft.setMsgs(new ArrayList<>());
+        }else {
+            this.messages = Collections.emptyList();
+        }
         SoftState softSt = raft.softState();
         if (!softSt.equals(preSoftSt)) {
             this.softState = softSt;

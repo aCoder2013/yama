@@ -18,4 +18,12 @@ package com.song.yama.example.raft.core;
 
 public interface StateMachine {
 
+    void propose(String key, String value);
+
+    String lookup(String key);
+
+    void processCommits(String commit);
+
+    void loadSnapshot();
+
 }

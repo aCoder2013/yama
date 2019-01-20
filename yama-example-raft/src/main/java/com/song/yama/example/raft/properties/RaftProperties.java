@@ -24,7 +24,7 @@ import org.springframework.context.annotation.Configuration;
 @Getter
 @Setter
 @Configuration
-@ConfigurationProperties("com.song.yama.raft")
+@ConfigurationProperties(prefix = "com.song.yama.raft")
 public class RaftProperties {
 
     private int id;

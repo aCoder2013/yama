@@ -33,7 +33,7 @@ public class Peer {
 
     private long id;
 
-    private byte[] context;
+    private byte[] context = new byte[0];
 
     public Peer(long id) {
         this.id = id;

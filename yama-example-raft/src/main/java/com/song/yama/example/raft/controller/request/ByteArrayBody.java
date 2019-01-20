@@ -16,9 +16,13 @@
 
 package com.song.yama.example.raft.controller.request;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class ByteArrayBody {
 
     private byte[] data;

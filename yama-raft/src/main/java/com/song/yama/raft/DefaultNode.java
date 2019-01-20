@@ -242,8 +242,11 @@ public class DefaultNode implements Node {
         if (this.raft.getPrs().containsKey(message.getFrom()) ||
             !Utils.isResponseMessage(message.getType())) {
             this.raft.step(message);
+            return;
         }
-        throw new RaftException("Step peer not found : " + message.getType() + ",from :" + message.getFrom());
+        throw new RaftException(
+            "Step peer not found : " + message.getType() + ",from :" + message.getFrom() + ",peers:" + this.raft
+                .getPrs().keySet());
     }
 
     @Override

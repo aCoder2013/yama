@@ -46,7 +46,7 @@ public class Utils {
     }
 
     public static boolean isEmptySnap(Snapshot snapshot) {
-        return snapshot.getMetadata().getIndex() == 0;
+        return snapshot == null || snapshot.getMetadata() == null || snapshot.getMetadata().getIndex() == 0;
     }
 
     public static List<Entry> limitSize(List<Entry> ents, long maxSize) {

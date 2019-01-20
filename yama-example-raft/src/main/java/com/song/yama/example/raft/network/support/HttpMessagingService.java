@@ -16,55 +16,88 @@
 
 package com.song.yama.example.raft.network.support;
 
+import com.alibaba.fastjson.JSONObject;
+import com.song.yama.example.raft.controller.request.ByteArrayBody;
+import com.song.yama.example.raft.core.RaftNode;
 import com.song.yama.example.raft.network.MessagingService;
-import com.song.yama.raft.Peer;
 import com.song.yama.raft.protobuf.RaftProtoBuf.Message;
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import javax.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
+import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
 import org.apache.commons.collections4.CollectionUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
 public class HttpMessagingService implements MessagingService {
 
-    private List<String> hosts;
+    public static final MediaType JSON
+        = MediaType.parse("application/json; charset=utf-8");
+
+    private List<String> hosts = new ArrayList<>();
+
+    @Autowired
+    private RaftNode raftNode;
 
     private OkHttpClient okHttpClient = new OkHttpClient.Builder()
         .readTimeout(6, TimeUnit.SECONDS)
         .connectTimeout(5, TimeUnit.SECONDS)
         .writeTimeout(10, TimeUnit.SECONDS)
         .build();
-    private List<Peer> peers;
-//
-//    public HttpMessagingService(List<String> hosts, List<Peer> peers) {
-//        checkArgument(CollectionUtils.isNotEmpty(hosts));
-//        this.hosts = new ArrayList<>(hosts);
-//        checkArgument(CollectionUtils.isNotEmpty(peers));
-//        this.peers = peers;
-//    }
 
     @Override
+    @PostConstruct
     public void start() {
         log.info("Start http based messaging service");
+        this.hosts = this.raftNode.getPeers();
     }
 
     @Override
-    public void send(List<Message> messages) {
+    public synchronized void send(List<Message> messages) {
+        if (CollectionUtils.isEmpty(this.hosts)) {
+            this.hosts = raftNode.getPeers();
+        }
+        if (CollectionUtils.isEmpty(this.hosts)) {
+            return;
+        }
         if (CollectionUtils.isNotEmpty(messages)) {
             messages.forEach(message -> {
+                if(message == null){
+                    log.info("草拟吗->" + com.alibaba.fastjson.JSON.toJSONString(messages));
+                    return;
+                }
                 if (message.getTo() == 0L) {
                     return;
                 }
                 //TODO: send message to remote peer
+                String host = this.hosts.get((int) (message.getTo() - 1));
+                RequestBody body = RequestBody
+                    .create(JSON, JSONObject.toJSONString(new ByteArrayBody(message.toByteArray())));
+                Request request = new Request.Builder()
+                    .url(String.format("http://%s/yama/raft/api/v1/send", host))
+                    .post(body)
+                    .build();
+                try {
+                    try (Response response = okHttpClient.newCall(request).execute()) {
+//                        log.info("Send message to host[{}] result:{}.", host, response.body().string());
+                    }
+                } catch (IOException e) {
+//                    log.error("Send message to remote failed:" + host, e);
+                }
             });
         }
     }
 
     @Override
     public void close() throws Exception {
-
     }
 }
