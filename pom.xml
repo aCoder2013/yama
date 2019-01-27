@@ -26,7 +26,7 @@
     <module>yama-server</module>
     <module>yama-common</module>
     <module>yama-raft</module>
-    <module>yama-messaing</module>
+    <module>yama-messaging</module>
     <module>yama-example</module>
     <module>yama-example-raft</module>
     <module>yama-storage</module>
@@ -234,16 +234,17 @@
       </dependency>
 
       <dependency>
+        <groupId>com.song.yama</groupId>
+        <artifactId>yama-messaging</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+      </dependency>
+
+      <dependency>
         <groupId>net.java.dev.jna</groupId>
         <artifactId>jna</artifactId>
         <version>4.5.2</version>
       </dependency>
 
-      <dependency>
-        <groupId>io.netty</groupId>
-        <artifactId>netty-all</artifactId>
-        <version>4.1.29.Final</version>
-      </dependency>
     </dependencies>
   </dependencyManagement>
 

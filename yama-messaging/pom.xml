@@ -9,7 +9,7 @@
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
-  <artifactId>yama-messaing</artifactId>
+  <artifactId>yama-messaging</artifactId>
 
   <dependencies>
     <dependency>

@@ -20,7 +20,7 @@
 
     <dependency>
       <groupId>com.song.yama</groupId>
-      <artifactId>yama-messaing</artifactId>
+      <artifactId>yama-messaging</artifactId>
     </dependency>
 
     <dependency>
