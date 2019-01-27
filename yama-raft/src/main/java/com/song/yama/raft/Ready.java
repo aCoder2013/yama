@@ -135,6 +135,7 @@ public class Ready {
 
         if (CollectionUtils.isNotEmpty(raft.getReadStates())) {
             this.readStates = raft.getReadStates();
+            this.readStates.clear();
         }
 
         this.mustSync = mustSync(raft.hardState(), preHardSt, this.entries.size());

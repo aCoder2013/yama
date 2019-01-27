@@ -51,15 +51,14 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.io.FileUtils;
-import org.jetbrains.annotations.NotNull;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.concurrent.BasicThreadFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -116,16 +115,11 @@ public class RaftNode {
     @Getter
     private SnapshotStorage snapshotStorage;
 
-    private ExecutorService taskThreadPool = Executors.newFixedThreadPool(2, new ThreadFactory() {
-        private AtomicInteger counter = new AtomicInteger();
-
-        @Override
-        public Thread newThread(@NotNull Runnable r) {
-            Thread thread = new Thread("raft-task-pool-" + counter.incrementAndGet());
-            thread.setUncaughtExceptionHandler((t, e) -> log.error("Uncaught exception :" + t, e));
-            return thread;
-        }
-    });
+    private ExecutorService taskThreadPool = Executors
+        .newFixedThreadPool(Runtime.getRuntime().availableProcessors(), new BasicThreadFactory.Builder()
+            .namingPattern("yama-raft-task-pool-")
+            .uncaughtExceptionHandler((t, e) -> log.info("Uncaught exception : " + t, e))
+            .build());
 
     private ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
 
@@ -178,11 +172,12 @@ public class RaftNode {
 
         RaftConfiguration raftConfiguration = new RaftConfiguration();
         raftConfiguration.setId(this.id);
-        raftConfiguration.setElectionTick(10);
-        raftConfiguration.setHeartbeatTick(1);
+        raftConfiguration.setElectionTick(50);
+        raftConfiguration.setHeartbeatTick(5);
         raftConfiguration.setRaftStorage(this.raftStorage);
         raftConfiguration.setMaxSizePerMsg(1024 * 1024);
         raftConfiguration.setMaxInflightMsgs(256);
+//        raftConfiguration.setPreVote(true);
         if (snapshot != null) {
             this.node = new DefaultNode(raftConfiguration);
         } else {
@@ -201,40 +196,11 @@ public class RaftNode {
         this.snapshotIndex = snap.getData().getMetadata().getIndex();
         this.appliedIndex = snap.getData().getMetadata().getIndex();
 
-        this.scheduledExecutorService.scheduleAtFixedRate(() -> {
-            this.node.tick();
-        }, 100, 100, TimeUnit.MILLISECONDS);
+        this.scheduledExecutorService
+            .scheduleAtFixedRate(this.node::tick, 100, 100,
+                TimeUnit.MILLISECONDS);
 
-        new Thread(() -> {
-            while (true) {
-                try {
-                    Ready ready = this.node.pullReady();
-                    this.commitLog.save(ready.getHardState(), ready.getCommittedEntries());
-                    if (!Utils.isEmptySnap(ready.getSnapshot())) {
-                        saveSnap(ready.getSnapshot());
-                        this.raftStorage.applySnapshot(ready.getSnapshot());
-                        publishSnapshot(ready.getSnapshot());
-                    }
-                    this.raftStorage.append(ready.getEntries());
-                    this.messagingService.send(ready.getMessages());
-                    publishEntries(entriesToApply(ready.getCommittedEntries()));
-                    //TODO:when to trigger snapshot
-//                rc.maybeTriggerSnapshot()
-                    this.node.advance(ready);
-                    try {
-                        Thread.sleep(100);
-                    } catch (InterruptedException e) {
-                        log.error(e.getMessage(), e);
-                    }
-                }catch (Exception e){
-                    log.error("Process ready failed", e);
-                }
-            }
-        }).start();
-
-//        this.taskThreadPool.execute(() -> {
-//
-//        });
+        this.taskThreadPool.submit(new ReadyProcessor(this));
     }
 
     public void processMessage(Message message) {
@@ -248,7 +214,7 @@ public class RaftNode {
         entries.forEach(entry -> {
             if (entry.getType() == EntryType.EntryNormal) {
                 if (entry.getData() == null || entry.getData().isEmpty()) {
-                }else {
+                } else {
                     String content = entry.getData().toStringUtf8();
                     this.stateMachine.processCommits(content);
                 }
@@ -258,8 +224,21 @@ public class RaftNode {
                     this.node.applyConfChange(confChange);
                     //TODO:support cluster node change
                     if (confChange.getType() == ConfChangeType.ConfChangeAddNode) {
+                        if (confChange.hasContext()) {
+                            String context = confChange.getContext().toStringUtf8();
+                            if (StringUtils.isNotBlank(context)) {
+                                this.peers.add(context);
+                                this.messagingService.refreshHosts(this.peers);
+                            }
+                        } else {
+                            log.warn("Ignore empty context node :{}.", confChange);
+                        }
                     } else if (confChange.getType() == ConfChangeType.ConfChangeRemoveNode) {
-
+                        if (confChange.getNodeID() == this.id) {
+                            log.info("Oops,I've been removed from raft cluster! Shutting down.");
+                            System.exit(1);
+                            return;
+                        }
                     }
                 } catch (InvalidProtocolBufferException e) {
                     log.error("Decode ConfChange failed", e);
@@ -325,4 +304,40 @@ public class RaftNode {
         return committedEntries;
     }
 
+    @PostConstruct
+    public void close() {
+        this.taskThreadPool.shutdown();
+    }
+
+    public class ReadyProcessor implements Runnable {
+
+        private final RaftNode raftNode;
+
+        ReadyProcessor(RaftNode raftNode) {
+            this.raftNode = raftNode;
+        }
+
+        @Override
+        public void run() {
+            while (true){
+                try {
+                    Ready ready = raftNode.node.pullReady();
+                    raftNode.commitLog.save(ready.getHardState(), ready.getCommittedEntries());
+                    if (!Utils.isEmptySnap(ready.getSnapshot())) {
+                        saveSnap(ready.getSnapshot());
+                        raftNode.raftStorage.applySnapshot(ready.getSnapshot());
+                        publishSnapshot(ready.getSnapshot());
+                    }
+                    raftNode.raftStorage.append(ready.getEntries());
+                    raftNode.messagingService.send(ready.getMessages());
+                    publishEntries(entriesToApply(ready.getCommittedEntries()));
+                    //TODO:when to trigger snapshot
+//                rc.maybeTriggerSnapshot()
+                    raftNode.node.advance(ready);
+                } catch (Exception e) {
+                    log.error("Process ready failed", e);
+                }
+            }
+        }
+    }
 }

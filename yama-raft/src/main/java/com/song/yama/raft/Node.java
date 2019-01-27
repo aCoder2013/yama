@@ -75,7 +75,7 @@ public interface Node {
      * NOTE: No committed entries from the next Ready may be applied until all committed entries and snapshots from the
      * previous one have finished.
      */
-    Ready pullReady();
+    Ready pullReady() throws InterruptedException;
 
     /**
      * Advance notifies the Node that the application has saved progress up to the last Ready. It prepares the node to

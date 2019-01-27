@@ -1492,7 +1492,6 @@ open class Raft(private val raftConfiguration: RaftConfiguration) {
         this.randomizedElectionTimeout = this.electionTimeout + RandomUtils.nextLong(0, this.electionTimeout)
     }
 
-
     /**
      * checkQuorumActive returns true if the quorum is active from
      * the view of the local raft state machine. Otherwise, it returns

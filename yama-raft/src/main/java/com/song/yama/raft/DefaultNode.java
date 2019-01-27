@@ -147,8 +147,15 @@ public class DefaultNode implements Node {
     }
 
     @Override
-    public Ready pullReady() {
-        return new Ready(raft, this.preSoftState, this.preHardState);
+    public Ready pullReady() throws InterruptedException {
+        for (; ;) {
+            Ready ready = new Ready(raft, this.preSoftState, this.preHardState);
+            if (ready.containsUpdates()) {
+                return ready;
+            }
+            Thread.sleep(1);
+            log.info("Sleep!!");
+        }
     }
 
     @Override

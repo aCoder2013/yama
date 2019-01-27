@@ -44,6 +44,7 @@ import com.song.yama.raft.utils.ProtoBufUtils.buildEntry
 import com.song.yama.raft.utils.ProtoBufUtils.buildMessage
 import com.song.yama.raft.utils.Utils
 import mu.KotlinLogging
+import org.apache.commons.lang3.RandomUtils
 import org.junit.Test
 import org.mockito.Mockito.*
 import java.util.*
@@ -3416,6 +3417,15 @@ class RaftTest {
         val raft = newTestRaftWithPreVote(1, mutableListOf(), 5, 1, storage, preVote)
         raft.reset(terms[terms.size - 1])
         return StateMachine(raft)
+    }
+
+    @Test
+    fun resetRandomizedElectionTimeout() {
+        val electionTimeout = 10L
+        println(electionTimeout + RandomUtils.nextLong(0, electionTimeout))
+        println(electionTimeout + RandomUtils.nextLong(0, electionTimeout))
+        println(electionTimeout + RandomUtils.nextLong(0, electionTimeout))
+        println(electionTimeout + RandomUtils.nextLong(0, electionTimeout))
     }
 
     companion object {

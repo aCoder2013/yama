@@ -19,9 +19,18 @@ package com.song.yama.example.raft.network;
 import com.song.yama.raft.protobuf.RaftProtoBuf.Message;
 import java.util.List;
 
+/**
+ * Messaging service. All methods must be thread safe!
+ */
 public interface MessagingService extends AutoCloseable {
 
     void start();
 
     void send(List<Message> messages);
+
+    /**
+     * Notify the messaging service that hosts have been updated.
+     */
+    void refreshHosts(List<String> hosts);
+
 }

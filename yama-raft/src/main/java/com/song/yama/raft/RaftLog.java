@@ -90,7 +90,7 @@ public class RaftLog {
      * maybeAppend returns (0, false) if the entries cannot be appended. Otherwise, it returns (last index of new
      * entries, true).
      */
-    public Result<Long> maybeAppend(long index, long logTerm, long committed,
+    public synchronized Result<Long> maybeAppend(long index, long logTerm, long committed,
         List<RaftProtoBuf.Entry> ents) {
         if (matchTerm(index, logTerm)) {
             long lastnewi = index + CollectionUtils.size(ents);
@@ -120,7 +120,7 @@ public class RaftLog {
      * conflicting if it has the same index but a different term. The first entry MUST have an index equal to the
      * argument 'from'. The index of the given entries MUST be continuously increasing.
      */
-    public long findConflict(List<RaftProtoBuf.Entry> ents) {
+    public synchronized long findConflict(List<RaftProtoBuf.Entry> ents) {
         if (ents != null && ents.size() > 0) {
             for (Entry entry : ents) {
                 if (!matchTerm(entry.getIndex(), entry.getTerm())) {
@@ -138,7 +138,7 @@ public class RaftLog {
         return 0;
     }
 
-    public List<RaftProtoBuf.Entry> unstableEntries() {
+    public synchronized List<RaftProtoBuf.Entry> unstableEntries() {
         if (CollectionUtils.isEmpty(this.unstable.getEntries())) {
             return Collections.emptyList();
         }
@@ -150,7 +150,7 @@ public class RaftLog {
      * nextEnts returns all the available entries for execution. If applied is smaller than the index of snapshot, it
      * returns all committed entries after the index of snapshot.
      */
-    public List<Entry> nextEnts() {
+    public synchronized List<Entry> nextEnts() {
         long off = Math.max(this.applied + 1, firstIndex());
         if (this.committed + 1 > off) {
             Result<List<Entry>> result = slice(off, this.committed + 1, maxMsgSize);
@@ -169,19 +169,19 @@ public class RaftLog {
      * hasNextEnts returns if there is any available entries for execution. This is a fast check without heavy
      * raftLog.slice() in raftLog.nextEnts().
      */
-    public boolean hasNextEnts() {
+    public synchronized boolean hasNextEnts() {
         long off = Math.max(this.applied + 1, firstIndex());
         return this.committed + 1 > off;
     }
 
-    public Result<Snapshot> snapshot() {
+    public synchronized Result<Snapshot> snapshot() {
         if (this.unstable.getSnapshot() != null) {
             return Result.success(this.unstable.getSnapshot());
         }
         return this.raftStorage.snapshot();
     }
 
-    public void commitTo(long toCommit) {
+    public synchronized void commitTo(long toCommit) {
         // never decrease commit
         if (this.committed < toCommit) {
             if (lastIndex() < toCommit) {
@@ -194,7 +194,7 @@ public class RaftLog {
         }
     }
 
-    public void appliedTo(long i) {
+    public synchronized void appliedTo(long i) {
         if (i == 0) {
             return;
         }
@@ -208,15 +208,15 @@ public class RaftLog {
     }
 
 
-    public void stableTo(long i, long t) {
+    public synchronized void stableTo(long i, long t) {
         this.unstable.stableTo(i, t);
     }
 
-    public void stableSnapTo(long i) {
+    public synchronized void stableSnapTo(long i) {
         this.unstable.stableSnapTo(i);
     }
 
-    public long lastTerm() {
+    public synchronized long lastTerm() {
         Result<Long> result = term(lastIndex());
         if (result.isSuccess()) {
             return result.getData();
@@ -224,7 +224,7 @@ public class RaftLog {
         throw new RaftException("Unexpected error when getting the last term : " + result.getCode());
     }
 
-    public long append(List<Entry> entries) {
+    public synchronized long append(List<Entry> entries) {
         if (CollectionUtils.isEmpty(entries)) {
             return lastIndex();
         }
@@ -239,7 +239,7 @@ public class RaftLog {
         return lastIndex();
     }
 
-    public long firstIndex() {
+    public synchronized long firstIndex() {
         Result<Long> result = this.unstable.maybeFirstIndex();
         if (result.isSuccess()) {
             return result.getData();
@@ -248,7 +248,7 @@ public class RaftLog {
         return this.raftStorage.firstIndex();
     }
 
-    public long lastIndex() {
+    public synchronized long lastIndex() {
         Result<Long> result = unstable.maybeLastIndex();
         if (result.isSuccess()) {
             return result.getData();
@@ -257,7 +257,7 @@ public class RaftLog {
         return raftStorage.lastIndex();
     }
 
-    public Result<Long> term(long i) {
+    public synchronized Result<Long> term(long i) {
         // the valid term range is [index of dummy entry, last index]
         long dummyIndex = firstIndex() - 1;
         if (i < dummyIndex || i > lastIndex()) {
@@ -282,7 +282,7 @@ public class RaftLog {
         throw new IllegalArgumentException("Unexpected error" + ErrorCode.getByCode(result.getCode()).getDesc());
     }
 
-    public Result<List<Entry>> entries(long i, long maxSize) {
+    public synchronized Result<List<Entry>> entries(long i, long maxSize) {
         if (i > lastIndex()) {
             return Result.success(Collections.emptyList());
         }
@@ -290,7 +290,7 @@ public class RaftLog {
         return slice(i, lastIndex() + 1, maxSize);
     }
 
-    public List<Entry> allEntries() {
+    public synchronized List<Entry> allEntries() {
         Result<List<Entry>> result = entries(firstIndex(), Long.MAX_VALUE);
         if (result.isSuccess()) {
             return result.getData();
@@ -312,11 +312,11 @@ public class RaftLog {
      * later term is more up-to-date. If the logs end with the same term, then whichever log has the larger lastIndex is
      * more up-to-date. If the logs are the same, the given log is up-to-date.
      */
-    public boolean isUpToDate(long lasti, long term) {
+    public synchronized boolean isUpToDate(long lasti, long term) {
         return term > lastTerm() || (term == lastTerm() && lasti >= lastIndex());
     }
 
-    public boolean matchTerm(long i, long term) {
+    public synchronized boolean matchTerm(long i, long term) {
         try {
             Result<Long> result = term(i);
             return result.isSuccess() && result.getData() == term;
@@ -327,7 +327,7 @@ public class RaftLog {
     }
 
 
-    public boolean maybeCommit(long maxIndex, long term) {
+    public synchronized boolean maybeCommit(long maxIndex, long term) {
         if (maxIndex > this.committed && zeroTermOnErrCompacted(term(maxIndex).getData(), null) == term) {
             commitTo(maxIndex);
             return true;
@@ -335,14 +335,14 @@ public class RaftLog {
         return false;
     }
 
-    public void restore(RaftProtoBuf.Snapshot snapshot) {
+    public synchronized void restore(RaftProtoBuf.Snapshot snapshot) {
         log.info(String.format("log [%s] starts to restore snapshot [index: %d, term: %d]", this,
             snapshot.getMetadata().getIndex(), snapshot.getMetadata().getTerm()));
         this.committed = snapshot.getMetadata().getIndex();
         this.unstable.restore(snapshot);
     }
 
-    public Result<List<Entry>> slice(long lo, long hi, long maxSize) {
+    public synchronized Result<List<Entry>> slice(long lo, long hi, long maxSize) {
         ErrorCode errorCode = mustCheckOutOfBounds(lo, hi);
         if (errorCode != null) {
             return Result.fail(errorCode.getCode(), errorCode.getDesc(), Collections.emptyList());
@@ -389,7 +389,7 @@ public class RaftLog {
     }
 
     // l.firstIndex <= lo <= hi <= l.firstIndex + len(l.entries)
-    public ErrorCode mustCheckOutOfBounds(long lo, long hi) {
+    public synchronized ErrorCode mustCheckOutOfBounds(long lo, long hi) {
         if (lo > hi) {
             throw new IllegalStateException(String.format("invalid slice %d > %d", lo, hi));
         }
@@ -409,7 +409,7 @@ public class RaftLog {
         return null;
     }
 
-    public long zeroTermOnErrCompacted(Long t, ErrorCode errorCode) {
+    public synchronized long zeroTermOnErrCompacted(Long t, ErrorCode errorCode) {
         if (t == null) {
             log.debug("t is null , change it into zero");
             t = 0L;

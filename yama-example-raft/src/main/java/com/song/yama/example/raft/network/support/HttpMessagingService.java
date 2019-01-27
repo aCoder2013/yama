@@ -22,9 +22,9 @@ import com.song.yama.example.raft.core.RaftNode;
 import com.song.yama.example.raft.network.MessagingService;
 import com.song.yama.raft.protobuf.RaftProtoBuf.Message;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.MediaType;
@@ -43,7 +43,7 @@ public class HttpMessagingService implements MessagingService {
     public static final MediaType JSON
         = MediaType.parse("application/json; charset=utf-8");
 
-    private List<String> hosts = new ArrayList<>();
+    private AtomicReference<List<String>> hosts = new AtomicReference<>();
 
     @Autowired
     private RaftNode raftNode;
@@ -52,34 +52,34 @@ public class HttpMessagingService implements MessagingService {
         .readTimeout(6, TimeUnit.SECONDS)
         .connectTimeout(5, TimeUnit.SECONDS)
         .writeTimeout(10, TimeUnit.SECONDS)
+        .retryOnConnectionFailure(true)
         .build();
 
     @Override
     @PostConstruct
     public void start() {
         log.info("Start http based messaging service");
-        this.hosts = this.raftNode.getPeers();
+        this.hosts.set(raftNode.getPeers());
     }
 
     @Override
     public synchronized void send(List<Message> messages) {
-        if (CollectionUtils.isEmpty(this.hosts)) {
-            this.hosts = raftNode.getPeers();
+        if (CollectionUtils.isEmpty(this.hosts.get())) {
+            this.hosts.set(raftNode.getPeers());
         }
-        if (CollectionUtils.isEmpty(this.hosts)) {
+        if (CollectionUtils.isEmpty(this.hosts.get())) {
             return;
         }
+        List<String> hosts = this.hosts.get();
         if (CollectionUtils.isNotEmpty(messages)) {
             messages.forEach(message -> {
-                if(message == null){
-                    log.info("草拟吗->" + com.alibaba.fastjson.JSON.toJSONString(messages));
+                if (message == null) {
                     return;
                 }
                 if (message.getTo() == 0L) {
                     return;
                 }
-                //TODO: send message to remote peer
-                String host = this.hosts.get((int) (message.getTo() - 1));
+                String host = hosts.get((int) (message.getTo() - 1));
                 RequestBody body = RequestBody
                     .create(JSON, JSONObject.toJSONString(new ByteArrayBody(message.toByteArray())));
                 Request request = new Request.Builder()
@@ -88,12 +88,23 @@ public class HttpMessagingService implements MessagingService {
                     .build();
                 try {
                     try (Response response = okHttpClient.newCall(request).execute()) {
-//                        log.info("Send message to host[{}] result:{}.", host, response.body().string());
+                        log.info("Send message to host[{}] type:{}.", host, message.getType());
                     }
                 } catch (IOException e) {
-//                    log.error("Send message to remote failed:" + host, e);
+                    log.warn("Send message to remote failed,you may ignore this warning if the system is starting up."
+                        + host, e);
                 }
             });
+        }
+    }
+
+    @Override
+    public void refreshHosts(List<String> hosts) {
+        for (; ; ) {
+            List<String> oldHosts = this.hosts.get();
+            if (this.hosts.compareAndSet(oldHosts, hosts)) {
+                return;
+            }
         }
     }
 
