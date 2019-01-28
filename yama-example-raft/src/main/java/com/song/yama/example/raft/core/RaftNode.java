@@ -123,6 +123,8 @@ public class RaftNode {
 
     private ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
 
+    private volatile boolean running;
+
     /* spring managed beans */
     @Autowired
     private StateMachine stateMachine;
@@ -201,6 +203,7 @@ public class RaftNode {
                 TimeUnit.MILLISECONDS);
 
         this.taskThreadPool.submit(new ReadyProcessor(this));
+        running = true;
     }
 
     public void processMessage(Message message) {
@@ -306,6 +309,7 @@ public class RaftNode {
 
     @PostConstruct
     public void close() {
+        running = false;
         this.taskThreadPool.shutdown();
     }
 
@@ -319,7 +323,7 @@ public class RaftNode {
 
         @Override
         public void run() {
-            while (true){
+            while (running){
                 try {
                     Ready ready = raftNode.node.pullReady();
                     raftNode.commitLog.save(ready.getHardState(), ready.getCommittedEntries());

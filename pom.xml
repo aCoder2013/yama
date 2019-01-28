@@ -65,7 +65,14 @@
     <dependency>
       <groupId>org.jetbrains.kotlin</groupId>
       <artifactId>kotlin-stdlib-jdk8</artifactId>
+      <!--<exclusions>-->
+        <!--<exclusion>-->
+          <!--<groupId>org.jetbrains.kotlin</groupId>-->
+          <!--<artifactId>kotlin-stdlib-jdk7</artifactId>-->
+        <!--</exclusion>-->
+      <!--</exclusions>-->
     </dependency>
+
     <dependency>
       <groupId>org.jetbrains.kotlin</groupId>
       <artifactId>kotlin-test-junit</artifactId>
@@ -107,8 +114,12 @@
         <version>1.6.10</version>
         <exclusions>
           <exclusion>
-              <groupId>org.jetbrains.kotlin</groupId>
-              <artifactId>kotlin-stdlib</artifactId>
+            <groupId>org.jetbrains.kotlin</groupId>
+            <artifactId>kotlin-stdlib</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.jetbrains.kotlin</groupId>
+            <artifactId>kotlin-stdlib-common</artifactId>
           </exclusion>
         </exclusions>
       </dependency>
@@ -199,7 +210,7 @@
 
       <dependency>
         <groupId>com.song.yama</groupId>
-        <artifactId>yama-messaing</artifactId>
+        <artifactId>yama-messaging</artifactId>
         <version>0.0.1-SNAPSHOT</version>
       </dependency>
 
