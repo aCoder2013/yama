@@ -27,31 +27,9 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package com.song.yama.raft;
+package com.song.yama.raft
 
-public class Peer {
+class Peer(var id: Long) {
 
-    private long id;
-
-    private byte[] context = new byte[0];
-
-    public Peer(long id) {
-        this.id = id;
-    }
-
-    public long getId() {
-        return id;
-    }
-
-    public void setId(long id) {
-        this.id = id;
-    }
-
-    public byte[] getContext() {
-        return context;
-    }
-
-    public void setContext(byte[] context) {
-        this.context = context;
-    }
+    var context = ByteArray(0)
 }

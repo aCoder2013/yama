@@ -28,31 +28,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package com.song.yama.raft;
+package com.song.yama.raft
 
-public enum ReadOnlyOption {
-
-    /**
-     * ReadOnlySafe guarantees the linearizability of the read only request by communicating with
-     * the quorum. It is the default and suggested option
-     */
-    READ_ONLY_SAFE(0),
+/**
+ * StateType represents the role of a node in a cluster.
+ */
+enum class StateType {
 
     /**
-     * ReadOnlyLeaseBased ensures linearizability of the read only request by relying on the leader
-     * lease. It can be affected by clock drift. If the clock drift is unbounded, leader might keep
-     * the lease longer than it should (clock can move backward/pause without any bound). ReadIndex
-     * is not safe in that case
+     * leader of the raft cluster , there is only one leader in a raft cluster
      */
-    READ_ONLY_LEASE_BASED(1);
+    LEADER,
 
-    private int code;
+    /**
+     * follower of the raft cluster
+     */
+    FOLLOWER,
 
-    ReadOnlyOption(int code) {
-        this.code = code;
-    }
+    /**
+     * candidate of the raft cluster
+     */
+    CANDIDATE,
 
-    public int getCode() {
-        return code;
-    }
+    PRE_CANDIDATE
+
 }

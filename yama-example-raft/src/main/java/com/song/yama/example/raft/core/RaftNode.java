@@ -257,7 +257,7 @@ public class RaftNode {
     }
 
     private void publishSnapshot(Snapshot snapshotToSave) {
-        if (Utils.isEmptySnap(snapshotToSave)) {
+        if (Utils.INSTANCE.isEmptySnap(snapshotToSave)) {
             return;
         }
         log.info("publishing snapshot at index {}", this.snapshotIndex);
@@ -327,7 +327,7 @@ public class RaftNode {
                 try {
                     Ready ready = raftNode.node.pullReady();
                     raftNode.commitLog.save(ready.getHardState(), ready.getCommittedEntries());
-                    if (!Utils.isEmptySnap(ready.getSnapshot())) {
+                    if (!Utils.INSTANCE.isEmptySnap(ready.getSnapshot())) {
                         saveSnap(ready.getSnapshot());
                         raftNode.raftStorage.applySnapshot(ready.getSnapshot());
                         publishSnapshot(ready.getSnapshot());

@@ -57,7 +57,7 @@ public class CommitLogSegmentTest {
         ByteBuffer byteBuffer = ByteBuffer.allocate(1024);
         channel.read(byteBuffer, 0);
         byteBuffer.flip();
-        assertThat(byteBuffer.getInt()).isEqualTo(CommitLogSegment.COMMIT_LOG_VERSION);
+        assertThat(byteBuffer.getInt()).isEqualTo(CommitLogSegment.Companion.getCOMMIT_LOG_VERSION());
         byte[] bodyArray = record.toByteArray();
         assertThat(byteBuffer.getInt()).isEqualTo(4 + 4 + 4 + bodyArray.length);
         assertThat(byteBuffer.getInt()).isEqualTo(CrcUtils.crc32(bodyArray));

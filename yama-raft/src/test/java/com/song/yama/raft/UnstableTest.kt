@@ -38,7 +38,7 @@ class UnstableTest {
 
     @Test
     fun testUnstableMaybeFirstIndex() {
-        class Item(val entries: List<RaftProtoBuf.Entry>, val offset: Long, val snap: RaftProtoBuf.Snapshot?, val wok: Boolean, val windex: Long)
+        class Item(val entries: MutableList<RaftProtoBuf.Entry>, val offset: Long, val snap: RaftProtoBuf.Snapshot?, val wok: Boolean, val windex: Long)
 
         val tests = mutableListOf(
                 Item(mutableListOf(RaftProtoBuf.Entry.newBuilder().setIndex(5).setTerm(1).build()), 5, null, false, 0),
@@ -59,7 +59,7 @@ class UnstableTest {
 
     @Test
     fun testMaybeLastIndex() {
-        class Item(val entries: List<RaftProtoBuf.Entry>, val offset: Long, val snap: RaftProtoBuf.Snapshot?, val wok: Boolean, val windex: Long)
+        class Item(val entries: MutableList<RaftProtoBuf.Entry>, val offset: Long, val snap: RaftProtoBuf.Snapshot?, val wok: Boolean, val windex: Long)
 
         val tests = mutableListOf(
                 Item(mutableListOf(RaftProtoBuf.Entry.newBuilder().setIndex(5).setTerm(1).build()), 5, null, true, 5),
@@ -80,7 +80,7 @@ class UnstableTest {
 
     @Test
     fun testUnstableMaybeTerm() {
-        class Item(val entries: List<RaftProtoBuf.Entry>, val offset: Long, val snap: RaftProtoBuf.Snapshot?, val index: Long, val wok: Boolean, val wterm: Long)
+        class Item(val entries: MutableList<RaftProtoBuf.Entry>, val offset: Long, val snap: RaftProtoBuf.Snapshot?, val index: Long, val wok: Boolean, val wterm: Long)
 
         val tests = mutableListOf(
                 Item(mutableListOf(RaftProtoBuf.Entry.newBuilder().setIndex(5).setTerm(1).build()), 5, null, 5, true, 1),
@@ -123,7 +123,7 @@ class UnstableTest {
 
     @Test
     fun testUnstableStableTo() {
-        class Item(val entries: List<RaftProtoBuf.Entry>, val offset: Long, val snap: RaftProtoBuf.Snapshot?, val index: Long, val term: Long, val woffset: Long, val wlen: Long)
+        class Item(val entries: MutableList<RaftProtoBuf.Entry>, val offset: Long, val snap: RaftProtoBuf.Snapshot?, val index: Long, val term: Long, val woffset: Long, val wlen: Long)
 
         val tests = mutableListOf(
                 Item(mutableListOf(), 0, null, 5, 1, 0, 0L),
@@ -154,7 +154,7 @@ class UnstableTest {
 
     @Test
     fun testUnstableTruncateAndAppend() {
-        class Item(val entries: List<RaftProtoBuf.Entry>, val offset: Long, val snap: RaftProtoBuf.Snapshot?, val toappend: List<RaftProtoBuf.Entry>, val woffset: Long, val wentries: List<RaftProtoBuf.Entry>)
+        class Item(val entries: MutableList<RaftProtoBuf.Entry>, val offset: Long, val snap: RaftProtoBuf.Snapshot?, val toappend: MutableList<RaftProtoBuf.Entry>, val woffset: Long, val wentries: List<RaftProtoBuf.Entry>)
 
         val tests = mutableListOf(
                 // append to the end

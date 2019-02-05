@@ -30,15 +30,14 @@
  *  limitations under the License.
  */
 
-package com.song.yama.raft.wal;
+package com.song.yama.raft.wal
 
-import com.song.yama.common.utils.Result;
-import com.song.yama.raft.protobuf.RaftProtoBuf;
-import com.song.yama.raft.protobuf.RaftProtoBuf.Entry;
-import com.song.yama.raft.protobuf.RaftProtoBuf.HardState;
-import com.song.yama.raft.protobuf.WALRecord;
-import java.io.Closeable;
-import java.util.List;
+import com.song.yama.common.utils.Result
+import com.song.yama.raft.protobuf.RaftProtoBuf
+import com.song.yama.raft.protobuf.RaftProtoBuf.Entry
+import com.song.yama.raft.protobuf.RaftProtoBuf.HardState
+import com.song.yama.raft.protobuf.WALRecord
+import java.io.Closeable
 
 /**
  * a storage interface for write ahead log WAL is a logical representation of the stable storage. WAL is either in read
@@ -46,11 +45,11 @@ import java.util.List;
  * opened WAL is in read mode, and ready for reading records. The WAL will be ready for appending after reading out all
  * the previous records.
  */
-public interface CommitLog extends Closeable {
+interface CommitLog : Closeable {
 
-    Result<Void> save(HardState hardState, List<Entry> ents);
+    fun save(hardState: HardState, ents: List<Entry>): Result<Void>
 
-    Result<Void> saveSnap(WALRecord.Snapshot snapshot);
+    fun saveSnap(snapshot: WALRecord.Snapshot): Result<Void>
 
-    Result<RaftStateRecord> readAll(RaftProtoBuf.Snapshot snapshot);
+    fun readAll(snapshot: RaftProtoBuf.Snapshot): Result<RaftStateRecord>
 }

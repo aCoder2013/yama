@@ -27,45 +27,43 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package com.song.yama.raft;
+package com.song.yama.raft
 
 
-import com.song.yama.raft.protobuf.RaftProtoBuf;
-import com.song.yama.raft.protobuf.RaftProtoBuf.ConfChange;
-import com.song.yama.raft.protobuf.RaftProtoBuf.ConfState;
-import com.song.yama.raft.protobuf.RaftProtoBuf.Message;
+import com.song.yama.raft.protobuf.RaftProtoBuf
+import com.song.yama.raft.protobuf.RaftProtoBuf.*
 
 /**
  * Node represents a node in a raft cluster
  */
-public interface Node {
+interface Node {
 
     /**
      * Tick increments the internal logical clock for the Node by a single tick. Election timeouts and heartbeat
      * timeouts are in units of ticks
      */
-    void tick();
+    fun tick()
 
     /**
      * Campaign causes the Node to transition to candidate state and start campaigning to become leader
      */
-    void campaign();
+    fun campaign()
 
     /**
      * Propose proposes that data be appended to the log
      */
-    void propose(byte[] data);
+    fun propose(data: ByteArray)
 
     /**
      * ProposeConfChange proposes config change. At most one ConfChange can be in the process of going through
      * consensus. Application needs to call ApplyConfChange when applying EntryConfChange type entry.
      */
-    void proposeConfChange(RaftProtoBuf.ConfChange confChange);
+    fun proposeConfChange(confChange: RaftProtoBuf.ConfChange)
 
     /**
      * Step advances the state machine using the given message. ctx.Err() will be returned, if any
      */
-    void heartbeatElapsedStep(RaftProtoBuf.Message message);
+    fun heartbeatElapsedStep(message: RaftProtoBuf.Message)
 
 
     /**
@@ -75,7 +73,8 @@ public interface Node {
      * NOTE: No committed entries from the next Ready may be applied until all committed entries and snapshots from the
      * previous one have finished.
      */
-    Ready pullReady() throws InterruptedException;
+    @Throws(InterruptedException::class)
+    fun pullReady(): Ready
 
     /**
      * Advance notifies the Node that the application has saved progress up to the last Ready. It prepares the node to
@@ -88,45 +87,45 @@ public interface Node {
      * continue receiving Ready without blocking raft progress, it can call Advance before finishing applying the last
      * ready.
      */
-    void advance(Ready ready);
+    fun advance(ready: Ready)
 
     /**
      * ApplyConfChange applies config change to the local node. Returns an opaque ConfState protobuf which must be
      * recorded in snapshots. Will never return nil; it returns a pointer only to match MemoryStorage.Compact.
      */
-    ConfState applyConfChange(ConfChange confChange);
+    fun applyConfChange(confChange: ConfChange): ConfState
 
-    void step(Message message);
+    fun step(message: Message)
 
     /**
      * TransferLeadership attempts to transfer leadership to the given transferee.
      */
-    void transferLeadership(long lead, long transferee);
+    fun transferLeadership(lead: Long, transferee: Long)
 
     /**
      * ReadIndex request a read state. The read state will be set in the ready. Read state has a read index. Once the
      * application advances further than the read index, any linearizable read requests issued before the read request
      * can be processed safely. The read state will have the same rctx attached.
      */
-    void readIndex(byte[] rctx);
+    fun readIndex(rctx: ByteArray)
 
     /**
      * Status returns the current status of the raft state machine
      */
-    Status status();
+    fun status(): Status
 
     /**
      * reportUnreachable reports the given node is not reachable for the last send.
      */
-    void reportUnreachable(long id);
+    fun reportUnreachable(id: Long)
 
     /**
      * ReportSnapshot reports the status of the sent snapshot
      */
-    void reportSnapshot(long id, SnapshotStatus snapshotStatus);
+    fun reportSnapshot(id: Long, snapshotStatus: SnapshotStatus)
 
     /**
      * Stop performs any necessary termination of the Node.
      */
-    void stop();
+    fun stop()
 }

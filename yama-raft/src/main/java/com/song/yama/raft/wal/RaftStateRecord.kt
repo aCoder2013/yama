@@ -14,20 +14,28 @@
  *  limitations under the License.
  */
 
-package com.song.yama.raft.wal;
+package com.song.yama.raft.wal
 
-import com.song.yama.raft.protobuf.RaftProtoBuf.Entry;
-import com.song.yama.raft.protobuf.RaftProtoBuf.HardState;
-import java.util.List;
-import lombok.Data;
+import com.song.yama.raft.protobuf.RaftProtoBuf.Entry
+import com.song.yama.raft.protobuf.RaftProtoBuf.HardState
+import lombok.Data
 
 @Data
-public class RaftStateRecord {
+class RaftStateRecord {
 
-    private HardState hardState;
+    var hardState: HardState? = null
+        set(hardState) {
+            field = this.hardState
+        }
 
-    private List<Entry> ents;
+    var ents: List<Entry>? = null
+        set(ents) {
+            field = this.ents
+        }
 
-    private byte[] metadata;
+    var metadata: ByteArray? = null
+        set(metadata) {
+            field = this.metadata
+        }
 
 }

@@ -27,24 +27,42 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package com.song.yama.raft;
 
-public class CampaignType {
+package com.song.yama.raft
 
-    /**
-     * campaignPreElection represents the first phase of a normal election when Config.PreVote is true.
-     */
-    public static final String CAMPAIGN_PRE_ELECTION = "CampaignPreElection";
+import com.song.yama.raft.protobuf.RaftProtoBuf.HardState
+import java.util.*
 
-    /**
-     * campaignElection represents a normal (time-based) election (the second phase of the election when Config.PreVote
-     * is true).
-     */
-    public static final String CAMPAIGN_ELECTION = "CampaignElection";
+class Status {
 
-    /**
-     * campaignTransfer represents the type of leader transfer
-     */
-    public static final String CAMPAIGN_TRANSFER = "CampaignTransfer";
+    var id: Long? = null
 
+    var hardState: HardState? = null
+
+    var softState: SoftState? = null
+
+    var applied: Long? = null
+
+    var progress: Map<Long, Progress>? = null
+
+    var leadTransferee: Long? = null
+
+    companion object {
+
+        fun getStatus(raft: Raft): Status {
+            val status = Status()
+            status.id = raft.id
+            status.leadTransferee = raft.leadTransferee
+            status.hardState = raft.hardState()
+            status.softState = raft.softState()
+            status.applied = raft.raftLog.applied
+            if (status.softState!!.raftState == StateType.LEADER) {
+                val progressMap = HashMap<Long, Progress>()
+                raft.prs.forEach { key, value -> progressMap.put(key, value) }
+                raft.learnerPrs.forEach { key, value -> progressMap.put(key, value) }
+                status.progress = progressMap
+            }
+            return status
+        }
+    }
 }

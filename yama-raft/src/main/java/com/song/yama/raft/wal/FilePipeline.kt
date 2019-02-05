@@ -14,9 +14,6 @@
  *  limitations under the License.
  */
 
-package com.song.yama.raft.wal;
+package com.song.yama.raft.wal
 
-public class FilePipeline {
-
-
-}
+class FilePipeline

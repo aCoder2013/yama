@@ -28,66 +28,56 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package com.song.yama.raft;
+package com.song.yama.raft
 
-import static com.song.yama.raft.utils.Utils.isEmptyHardState;
-import static com.song.yama.raft.utils.Utils.isEmptySnap;
-
-import com.song.yama.raft.protobuf.RaftProtoBuf.Entry;
-import com.song.yama.raft.protobuf.RaftProtoBuf.HardState;
-import com.song.yama.raft.protobuf.RaftProtoBuf.Message;
-import com.song.yama.raft.protobuf.RaftProtoBuf.Snapshot;
-import com.song.yama.raft.utils.Utils;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import lombok.Data;
-import org.apache.commons.collections4.CollectionUtils;
+import com.song.yama.raft.protobuf.RaftProtoBuf.*
+import com.song.yama.raft.utils.Utils
+import com.song.yama.raft.utils.Utils.isEmptyHardState
+import com.song.yama.raft.utils.Utils.isEmptySnap
+import org.apache.commons.collections4.CollectionUtils
+import java.util.*
 
 /**
  * Ready encapsulates the entries and messages that are ready to read, be saved to stable storage, committed or sent to
  * other peers. All fields in Ready are read-only.
  */
-@Data
-public class Ready {
-
+class Ready(val raft: Raft, val preSoftSt: SoftState, val preHardSt: HardState) {
 
     /**
      * The current volatile state of a Node. SoftState will be nil if there is no update. It is not required to consume
      * or store SoftState.
      */
-    private SoftState softState;
+    var softState: SoftState? = null
 
     /**
      * The current state of a Node to be saved to stable storage BEFORE Messages are sent. HardState will be equal to
      * empty state if there is no update.
      */
-    private HardState hardState = HardState.getDefaultInstance();
+    var hardState: HardState = HardState.getDefaultInstance()
 
     /**
      * ReadStates can be used for node to serve linearizable read requests locally when its applied index is greater
      * than the index in ReadState. Note that the readState will be returned when raft receives msgReadIndex. The
      * returned is only valid for the request that requested to read.
      */
-    private List<ReadState> readStates;
+    var readStates: MutableList<ReadState> = Collections.emptyList()
 
     /**
      * Entries specifies entries to be saved to stable storage BEFORE Messages are sent.
      */
-    private List<Entry> entries;
-
+    var entries: List<Entry> = Collections.emptyList()
 
     /**
      * Snapshot specifies the snapshot to be saved to stable storage
      */
-    private Snapshot snapshot;
+    var snapshot: Snapshot? = null
 
     /**
      * Messages specifies outbound messages to be sent AFTER Entries are committed to stable storage. If it contains a
      * MsgSnap message, the application MUST report back to raft when the snapshot has been received or has failed by
      * calling ReportSnapshot.
      */
-    private List<Entry> committedEntries;
+    val committedEntries: List<Entry>
 
 
     /**
@@ -95,61 +85,64 @@ public class Ready {
      * MsgSnap message, the application MUST report back to raft when the snapshot has been received or has failed by
      * calling ReportSnapshot.
      */
-    private List<Message> messages;
+    var messages: List<Message>? = null
 
     /**
      * MustSync indicates whether the HardState and Entries must be synchronously written to disk or if an asynchronous
      * write is permissible.
      */
-    private boolean mustSync;
+    val mustSync: Boolean
 
-    public Ready(Raft raft, SoftState preSoftSt, HardState preHardSt) {
-        this.entries = raft.getRaftLog().unstableEntries();
-        this.committedEntries = raft.getRaftLog().nextEnts();
-        if(CollectionUtils.isNotEmpty(raft.getMsgs())){
-            this.messages = raft.getMsgs();
-            raft.setMsgs(new ArrayList<>());
-        }else {
-            this.messages = Collections.emptyList();
+    init {
+        this.entries = raft.raftLog.unstableEntries()
+        this.committedEntries = raft.raftLog.nextEnts()
+        if (CollectionUtils.isNotEmpty(raft.msgs)) {
+            this.messages = raft.msgs
+            raft.msgs = ArrayList()
+        } else {
+            this.messages = emptyList()
         }
-        SoftState softSt = raft.softState();
-        if (!softSt.equals(preSoftSt)) {
-            this.softState = softSt;
+        val softSt = raft.softState()
+        if (softSt != preSoftSt) {
+            this.softState = softSt
         }
 
-        HardState hardSt = raft.hardState();
+        val hardSt = raft.hardState()
         if (!Utils.isHardStateEqual(hardSt, preHardSt)) {
-            this.hardState = hardSt;
+            this.hardState = hardSt
 
             if (CollectionUtils.isNotEmpty(this.committedEntries)) {
-                Entry lastCommit = this.committedEntries.get(committedEntries.size() - 1);
-                if (this.hardState.getCommit() > lastCommit.getIndex()) {
-                    this.hardState = this.hardState.toBuilder().setCommit(lastCommit.getIndex()).build();
+                val lastCommit = this.committedEntries[committedEntries.size - 1]
+                if (this.hardState.commit > lastCommit.index) {
+                    this.hardState = this.hardState.toBuilder().setCommit(lastCommit.index).build()
                 }
             }
         }
 
-        if (raft.getRaftLog().getUnstable().getSnapshot() != null) {
-            this.snapshot = raft.getRaftLog().getUnstable().getSnapshot();
+        if (raft.raftLog.unstable.snapshot != null) {
+            this.snapshot = raft.raftLog.unstable.snapshot
         }
 
-        if (CollectionUtils.isNotEmpty(raft.getReadStates())) {
-            this.readStates = raft.getReadStates();
-            this.readStates.clear();
+        if (CollectionUtils.isNotEmpty(raft.readStates)) {
+            this.readStates = raft.readStates
+            this.readStates!!.clear()
         }
 
-        this.mustSync = mustSync(raft.hardState(), preHardSt, this.entries.size());
+        this.mustSync = mustSync(raft.hardState(), preHardSt, this.entries.size)
     }
 
-    public boolean containsUpdates() {
-        return this.softState != null || !isEmptyHardState(this.hardState) ||
-            !isEmptySnap(this.snapshot) || CollectionUtils.isNotEmpty(this.entries) ||
-            CollectionUtils.isNotEmpty(committedEntries) || CollectionUtils
-            .isNotEmpty(this.messages)
-            || CollectionUtils.isNotEmpty(this.readStates);
+    fun containsUpdates(): Boolean {
+        return (this.softState != null || !isEmptyHardState(this.hardState) ||
+                !isEmptySnap(this.snapshot) || CollectionUtils.isNotEmpty(this.entries) ||
+                CollectionUtils.isNotEmpty(committedEntries) || CollectionUtils
+                .isNotEmpty(this.messages)
+                || CollectionUtils.isNotEmpty(this.readStates))
     }
 
-    public static boolean mustSync(HardState st, HardState prevst, int entsnum) {
-        return entsnum != 0 || st.getVote() != prevst.getVote() || st.getTerm() != prevst.getTerm();
+    companion object {
+
+        fun mustSync(st: HardState, prevst: HardState, entsnum: Int): Boolean {
+            return entsnum != 0 || st.vote != prevst.vote || st.term != prevst.term
+        }
     }
 }

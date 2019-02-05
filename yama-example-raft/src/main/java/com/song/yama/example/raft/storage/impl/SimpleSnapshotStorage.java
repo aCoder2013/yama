@@ -45,7 +45,7 @@ public class SimpleSnapshotStorage implements SnapshotStorage {
 
     @Override
     public void save(Snapshot snapshot) throws IOException {
-        if (Utils.isEmptySnap(snapshot)) {
+        if (Utils.INSTANCE.isEmptySnap(snapshot)) {
             return;
         }
 

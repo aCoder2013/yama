@@ -14,15 +14,22 @@
  *  limitations under the License.
  */
 
-package com.song.yama.raft.exception;
+package com.song.yama.raft.wal.utils
 
-/**
- * ErrProposalDropped is returned when the proposal is ignored by some cases, so that the proposer can be notified and
- * fail fast.
- */
-public class RaftProposalDroppedException extends RuntimeException {
+interface Constants {
+    companion object {
 
-    public RaftProposalDroppedException() {
-        super("raft proposal dropped");
+        val OS_PAGE_SIZE = 1024 * 4
+
+        val COMMIT_LOG_FILE_SIZE = 512 * 1024 * 1024 // 512MB
+
+        /**
+         * File at the end of the minimum fixed length empty
+         */
+        val END_FILE_MIN_BLANK_LENGTH = 8
+
+        val RECORD_MAGIC_CODE = 0xecbde
+
+        val DEFAULT_WRITE_BUFFER_SIZE = 65536 //64KB
     }
 }

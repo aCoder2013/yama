@@ -28,9 +28,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package com.song.yama.raft.utils;
+package com.song.yama.raft.utils
 
-public enum ErrorCode {
+enum class ErrorCode private constructor(val code: Int, val desc: String) {
     OK(0, "ok"),
 
     ErrCompacted(1001, "requested index is unavailable due to compaction"),
@@ -54,37 +54,22 @@ public enum ErrorCode {
     ErrInvalidCrc(1012, "crc check failed"),
     ErrFlushChannel(1013, "flush channel failed"),
 
-    UNKNOWN(9999, "unknown exception"),;
+    UNKNOWN(9999, "unknown exception");
 
-    private int code;
 
-    private String desc;
+    companion object {
 
-    ErrorCode(int code, String desc) {
-        this.code = code;
-        this.desc = desc;
-    }
-
-    public int getCode() {
-        return code;
-    }
-
-    public String getDesc() {
-        return desc;
-    }
-
-    public static ErrorCode getByCode(int code) {
-        return getByCode(code, ErrorCode.UNKNOWN);
-    }
-
-    public static ErrorCode getByCode(int code, ErrorCode defaultValue) {
-        for (ErrorCode errorCode : values()) {
-            if (errorCode.getCode() == code) {
-                return errorCode;
+        @JvmOverloads
+        @JvmStatic
+        fun getByCode(code: Int, defaultValue: ErrorCode = ErrorCode.UNKNOWN): ErrorCode {
+            for (errorCode in values()) {
+                if (errorCode.code == code) {
+                    return errorCode
+                }
             }
-        }
 
-        return defaultValue;
+            return defaultValue
+        }
     }
 
 }

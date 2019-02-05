@@ -14,26 +14,17 @@
  *  limitations under the License.
  */
 
-package com.song.yama.raft.exception;
+package com.song.yama.raft.exception
 
-public class RaftException extends RuntimeException {
+class RaftException : RuntimeException {
 
-    public RaftException() {
-    }
+    constructor() {}
 
-    public RaftException(String message) {
-        super(message);
-    }
+    constructor(message: String) : super(message) {}
 
-    public RaftException(String message, Throwable cause) {
-        super(message, cause);
-    }
+    constructor(message: String, cause: Throwable) : super(message, cause) {}
 
-    public RaftException(Throwable cause) {
-        super(cause);
-    }
+    constructor(cause: Throwable) : super(cause) {}
 
-    public RaftException(String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
-        super(message, cause, enableSuppression, writableStackTrace);
-    }
+    constructor(message: String, cause: Throwable, enableSuppression: Boolean, writableStackTrace: Boolean) : super(message, cause, enableSuppression, writableStackTrace) {}
 }

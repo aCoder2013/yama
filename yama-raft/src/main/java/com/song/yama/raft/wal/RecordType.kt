@@ -14,20 +14,17 @@
  *  limitations under the License.
  */
 
-package com.song.yama.raft.wal.utils;
+package com.song.yama.raft.wal
 
-public interface Constants {
+enum class RecordType {
 
-    int OS_PAGE_SIZE = 1024 * 4;
+    METADATA,
 
-    int COMMIT_LOG_FILE_SIZE = 512 * 1024 * 1024; // 512MB
+    ENTRY,
 
-    /**
-     * File at the end of the minimum fixed length empty
-     */
-    int END_FILE_MIN_BLANK_LENGTH = 8;
+    STATE,
 
-    int RECORD_MAGIC_CODE = 0xecbde;
+    CRC,
 
-    int DEFAULT_WRITE_BUFFER_SIZE = 65536; //64KB
+    SNAPSHOT
 }

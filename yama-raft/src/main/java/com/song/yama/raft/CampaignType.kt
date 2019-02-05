@@ -27,29 +27,24 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+package com.song.yama.raft
 
-package com.song.yama.raft;
-
-/**
- * StateType represents the role of a node in a cluster.
- */
-public enum StateType {
+object CampaignType {
 
     /**
-     * leader of the raft cluster , there is only one leader in a raft cluster
+     * campaignPreElection represents the first phase of a normal election when Config.PreVote is true.
      */
-    LEADER,
+    val CAMPAIGN_PRE_ELECTION = "CampaignPreElection"
 
     /**
-     * follower of the raft cluster
+     * campaignElection represents a normal (time-based) election (the second phase of the election when Config.PreVote
+     * is true).
      */
-    FOLLOWER,
+    val CAMPAIGN_ELECTION = "CampaignElection"
 
     /**
-     * candidate of the raft cluster
+     * campaignTransfer represents the type of leader transfer
      */
-    CANDIDATE,
-
-    PRE_CANDIDATE
+    val CAMPAIGN_TRANSFER = "CampaignTransfer"
 
 }

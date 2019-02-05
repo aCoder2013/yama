@@ -14,17 +14,10 @@
  *  limitations under the License.
  */
 
-package com.song.yama.raft.wal;
+package com.song.yama.raft.exception
 
-public enum RecordType {
-
-    METADATA,
-
-    ENTRY,
-
-    STATE,
-
-    CRC,
-
-    SNAPSHOT
-}
+/**
+ * ErrProposalDropped is returned when the proposal is ignored by some cases, so that the proposer can be notified and
+ * fail fast.
+ */
+class RaftProposalDroppedException : RuntimeException("raft proposal dropped")
