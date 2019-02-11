@@ -115,7 +115,7 @@ class RaftLogTest {
                 buildEntry(1, 1),
                 buildEntry(2, 2))
 
-        class Item(val ents: List<RaftProtoBuf.Entry>, val windex: Long, val wents: List<RaftProtoBuf.Entry>, val wunstable: Long)
+        class Item(val ents: MutableList<RaftProtoBuf.Entry>, val windex: Long, val wents: List<RaftProtoBuf.Entry>, val wunstable: Long)
 
         val tests = mutableListOf(
                 Item(mutableListOf(), 2, mutableListOf(buildEntry(1, 1), buildEntry(2, 2)), 3),
@@ -160,7 +160,7 @@ class RaftLogTest {
         val lastterm = 3L
         val commit = 1L
 
-        class Item(val logTerm: Long, val index: Long, val committed: Long, val ents: List<RaftProtoBuf.Entry>?, val wlasti: Long, val wappend: Boolean, val wcommit: Long, val wpanic: Boolean)
+        class Item(val logTerm: Long, val index: Long, val committed: Long, val ents: List<RaftProtoBuf.Entry>, val wlasti: Long, val wappend: Boolean, val wcommit: Long, val wpanic: Boolean)
 
         val tests = mutableListOf<Item>(
                 // not match: term is different
@@ -168,11 +168,11 @@ class RaftLogTest {
                 // not match: index out of bound
                 Item(lastterm, lastindex + 1, lastindex, mutableListOf(buildEntry(lastindex + 2, 4)), 0, false, commit, false),
                 // match with the last existing entry
-                Item(lastterm, lastindex, lastindex, null, lastindex, true, lastindex, false),
-                Item(lastterm, lastindex, lastindex + 1, null, lastindex, true, lastindex, false), // do not increase commit higher than lastnewi
-                Item(lastterm, lastindex, lastindex - 1, null, lastindex, true, lastindex - 1, false),// commit up to the commit in the message
-                Item(lastterm, lastindex, 0, null, lastindex, true, commit, false), // commit do not decrease
-                Item(0, 0, lastindex, null, 0, true, commit, false),  // commit do not decrease
+                Item(lastterm, lastindex, lastindex, emptyList(), lastindex, true, lastindex, false),
+                Item(lastterm, lastindex, lastindex + 1, emptyList(), lastindex, true, lastindex, false), // do not increase commit higher than lastnewi
+                Item(lastterm, lastindex, lastindex - 1, emptyList(), lastindex, true, lastindex - 1, false),// commit up to the commit in the message
+                Item(lastterm, lastindex, 0, emptyList(), lastindex, true, commit, false), // commit do not decrease
+                Item(0, 0, lastindex, emptyList(), 0, true, commit, false),  // commit do not decrease
                 Item(lastterm, lastindex, lastindex, mutableListOf(buildEntry(lastindex + 1, 4)), lastindex + 1, true, lastindex, false),
                 Item(lastterm, lastindex, lastindex + 1, mutableListOf(buildEntry(lastindex + 1, 4)), lastindex + 1, true, lastindex + 1, false),
                 Item(lastterm, lastindex, lastindex + 2, mutableListOf(buildEntry(lastindex + 1, 4)), lastindex + 1, true, lastindex + 1, false),// do not increase commit higher than lastnewi
@@ -403,15 +403,15 @@ class RaftLogTest {
         val snapi = 5L
         val snapt = 2L
 
-        class Item(val stablei: Long, val stablet: Long, val newEnts: List<RaftProtoBuf.Entry>, val wunstable: Long)
+        class Item(val stablei: Long, val stablet: Long, val newEnts: MutableList<RaftProtoBuf.Entry>, val wunstable: Long)
 
         val tests = mutableListOf<Item>(
-                Item(snapi + 1, snapt, emptyList(), snapi + 1),
-                Item(snapi, snapt, emptyList(), snapi + 1),
-                Item(snapi - 1, snapt, emptyList(), snapi + 1),
-                Item(snapi + 1, snapt + 1, emptyList(), snapi + 1),
-                Item(snapi, snapt + 1, emptyList(), snapi + 1),
-                Item(snapi - 1, snapt + 1, emptyList(), snapi + 1),
+                Item(snapi + 1, snapt, mutableListOf(), snapi + 1),
+                Item(snapi, snapt, mutableListOf(), snapi + 1),
+                Item(snapi - 1, snapt, mutableListOf(), snapi + 1),
+                Item(snapi + 1, snapt + 1, mutableListOf(), snapi + 1),
+                Item(snapi, snapt + 1, mutableListOf(), snapi + 1),
+                Item(snapi - 1, snapt + 1, mutableListOf(), snapi + 1),
 
                 Item(snapi + 1, snapt, mutableListOf(buildEntry(snapi + 1, snapt)), snapi + 2),
                 Item(snapi, snapt, mutableListOf(buildEntry(snapi + 1, snapt)), snapi + 1),

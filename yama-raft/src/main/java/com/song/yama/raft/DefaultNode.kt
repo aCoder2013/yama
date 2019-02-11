@@ -46,7 +46,6 @@ class DefaultNode : Node {
     private var preHardState: HardState? = null
 
     constructor(configuration: RaftConfiguration) {
-        checkArgument(configuration != null)
         checkArgument(configuration.id != 0L)
         this.raft = Raft(configuration)
     }
@@ -171,18 +170,18 @@ class DefaultNode : Node {
         }
 
         val hardState = ready.hardState
-        if (hardState != null && hardState!!.getCommit() > 0) {
+        if (hardState.commit > 0) {
             this.preHardState = hardState
         }
 
         if (CollectionUtils.isNotEmpty(ready.entries)) {
             val entry = ready.entries.get(ready.entries.size - 1)
-            this.raft!!.raftLog.stableTo(entry.getIndex(), entry.getTerm())
+            this.raft!!.raftLog.stableTo(entry.index, entry.term)
         }
 
         val snapshot = ready.snapshot
         if (snapshot != null && snapshot !== Snapshot.newBuilder().build()) {
-            this.raft!!.raftLog.stableSnapTo(snapshot!!.getMetadata().getIndex())
+            this.raft!!.raftLog.stableSnapTo(snapshot.metadata.index)
         }
 
         if (CollectionUtils.isNotEmpty(ready.readStates)) {

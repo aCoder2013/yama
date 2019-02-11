@@ -3483,7 +3483,7 @@ class RaftTest {
 
             val ents = r.raftLog.nextEnts()
             r.raftLog.appliedTo(r.raftLog.committed)
-            return ents
+            return ents.toMutableList()
         }
 
         private fun mustTerm(result: Result<Long>): Long {

@@ -53,7 +53,7 @@ class MemoryRaftStorage : RaftStorage {
     private var snapshot: Snapshot = Snapshot.newBuilder().build()
 
     // ents[i] has raft log position i+snapshot.Metadata.Index
-    private var ents: MutableList<Entry> = ArrayList(listOf(Entry.newBuilder().build()))
+    var ents: MutableList<Entry> = listOf(Entry.newBuilder().build()).toMutableList()
 
     constructor() {}
 
@@ -248,10 +248,6 @@ class MemoryRaftStorage : RaftStorage {
         } finally {
             this.lock.unlock()
         }
-    }
-
-    fun getEnts(): List<Entry> {
-        return ents
     }
 
     companion object {
