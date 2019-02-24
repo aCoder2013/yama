@@ -22,9 +22,9 @@ import org.apache.commons.collections4.CollectionUtils
 
 object Utils {
 
-    val INVALID_ID: Long = 0
+    const val INVALID_ID: Long = 0
 
-    val NO_LIMIT = java.lang.Long.MAX_VALUE
+    const val NO_LIMIT = java.lang.Long.MAX_VALUE
 
     val EMPTY_HARD_STATE: HardState = HardState.newBuilder().build()
 
@@ -50,8 +50,7 @@ object Utils {
         }
 
         var size = ents[0].serializedSize.toLong()
-        var limit: Int
-        limit = 1
+        var limit = 1
         while (limit < ents.size) {
             size += ents[limit].serializedSize.toLong()
             if (size > maxSize) {

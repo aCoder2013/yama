@@ -30,7 +30,7 @@
 
 package com.song.yama.raft.utils
 
-enum class ErrorCode private constructor(val code: Int, val desc: String) {
+enum class ErrorCode(val code: Int, val desc: String) {
     OK(0, "ok"),
 
     ErrCompacted(1001, "requested index is unavailable due to compaction"),

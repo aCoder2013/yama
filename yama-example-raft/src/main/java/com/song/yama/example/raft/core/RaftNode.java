@@ -152,7 +152,7 @@ public class RaftNode {
         Snapshot snapshot = this.snapshotStorage.load();
         if (snapshot != null) {
             Result<RaftStateRecord> raftStateRecordResult = this.commitLog.readAll(snapshot);
-            if (raftStateRecordResult.isFailure()) {
+            if (raftStateRecordResult.isFailure() || raftStateRecordResult.getData() == null) {
                 throw new IOException("Failed to read wal :" + raftStateRecordResult.getMessage());
             }
 
@@ -174,8 +174,8 @@ public class RaftNode {
 
         RaftConfiguration raftConfiguration = new RaftConfiguration();
         raftConfiguration.setId(this.id);
-        raftConfiguration.setElectionTick(50);
-        raftConfiguration.setHeartbeatTick(5);
+        raftConfiguration.setElectionTick(10);
+        raftConfiguration.setHeartbeatTick(1);
         raftConfiguration.setRaftStorage(this.raftStorage);
         raftConfiguration.setMaxSizePerMsg(1024 * 1024);
         raftConfiguration.setMaxInflightMsgs(256);
@@ -202,8 +202,8 @@ public class RaftNode {
             .scheduleAtFixedRate(this.node::tick, 100, 100,
                 TimeUnit.MILLISECONDS);
 
+        this.running = true;
         this.taskThreadPool.submit(new ReadyProcessor(this));
-        running = true;
     }
 
     public void processMessage(Message message) {
@@ -323,7 +323,7 @@ public class RaftNode {
 
         @Override
         public void run() {
-            while (running){
+            while (true){
                 try {
                     Ready ready = raftNode.node.pullReady();
                     raftNode.commitLog.save(ready.getHardState(), ready.getCommittedEntries());

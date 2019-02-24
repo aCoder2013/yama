@@ -67,8 +67,11 @@ class DefaultNode : Node {
             val confChange = ConfChange.newBuilder()
                     .setType(ConfChangeType.ConfChangeAddNode).setNodeID(peer.id)
                     .setContext(ByteString.copyFrom(peer.context)).build()
-            val entry = Entry.newBuilder().setType(EntryType.EntryConfChange).setTerm(1)
-                    .setIndex(raft!!.raftLog.lastIndex() + 1).setData(confChange.toByteString())
+            val entry = Entry.newBuilder()
+                    .setType(EntryType.EntryConfChange)
+                    .setTerm(1)
+                    .setIndex(raft!!.raftLog.lastIndex() + 1)
+                    .setData(confChange.toByteString())
                     .build()
             raft!!.raftLog.append(mutableListOf(entry))
         }
@@ -87,7 +90,9 @@ class DefaultNode : Node {
         // entries since they have already been committed).
         // We do not set raftLog.applied so the application will be able
         // to observe all conf changes via Ready.CommittedEntries.
-        peers.forEach { peer -> raft!!.addNode(peer.id) }
+        peers.forEach { peer ->
+            raft!!.addNode(peer.id)
+        }
 
         this.preSoftState = this.raft!!.softState()
         this.preHardState = HardState.newBuilder().build()

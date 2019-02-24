@@ -44,7 +44,7 @@ class RaftLog @JvmOverloads constructor(
         /**
          * storage contains all stable entries since the last snapshot
          */
-    val raftStorage: RaftStorage, var maxMsgSize: Long = java.lang.Long.MAX_VALUE) {
+        val raftStorage: RaftStorage, var maxMsgSize: Long = java.lang.Long.MAX_VALUE) {
 
     /**
      * unstable contains all unstable entries and snapshot. they will be saved into storage
@@ -231,7 +231,7 @@ class RaftLog @JvmOverloads constructor(
                     String.format("after(%d) is out of range [committed(%d)]", after, this.committed))
         }
 
-        this.unstable!!.truncateAndAppend(entries)
+        this.unstable.truncateAndAppend(entries)
         return lastIndex()
     }
 
@@ -249,8 +249,7 @@ class RaftLog @JvmOverloads constructor(
         val result = unstable!!.maybeLastIndex()
         return if (result.isSuccess) {
             result.data
-        } else raftStorage!!.lastIndex()
-
+        } else raftStorage.lastIndex()
     }
 
     @Synchronized
@@ -356,9 +355,9 @@ class RaftLog @JvmOverloads constructor(
         }
 
         var ents: MutableList<Entry>? = null
-        if (lo < this.unstable!!.offset) {
-            val result = raftStorage!!
-                    .entries(lo, Math.min(hi, this.unstable!!.offset), maxSize)
+        if (lo < this.unstable.offset) {
+            val result = raftStorage
+                    .entries(lo, Math.min(hi, this.unstable.offset), maxSize)
             if (result.isFailure) {
                 val code = ErrorCode.getByCode(result.code)
                 if (code === ErrorCode.ErrCompacted) {
@@ -366,7 +365,7 @@ class RaftLog @JvmOverloads constructor(
                 } else if (code === ErrorCode.ErrUnavailable) {
                     throw IllegalStateException(String
                             .format("entries[%d:%d) is unavailable from storage", lo,
-                                    Math.min(hi, this.unstable!!.offset)))
+                                    Math.min(hi, this.unstable.offset)))
                 } else {
                     throw IllegalStateException(code.desc)
                 }

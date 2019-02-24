@@ -1289,7 +1289,6 @@ open class Raft(private val raftConfiguration: RaftConfiguration) {
      */
     fun tickElection() {
         this.electionElapsed++
-
         if (promotable() && pastElectionTimeout()) {
             this.electionElapsed = 0
 

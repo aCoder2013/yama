@@ -36,6 +36,7 @@ import com.song.yama.raft.utils.Utils.isEmptyHardState
 import com.song.yama.raft.utils.Utils.isEmptySnap
 import org.apache.commons.collections4.CollectionUtils
 import java.util.*
+import kotlin.collections.ArrayList
 
 /**
  * Ready encapsulates the entries and messages that are ready to read, be saved to stable storage, committed or sent to
@@ -97,7 +98,7 @@ class Ready(val raft: Raft, val preSoftSt: SoftState, val preHardSt: HardState) 
         this.entries = raft.raftLog.unstableEntries()
         this.committedEntries = raft.raftLog.nextEnts()
         if (CollectionUtils.isNotEmpty(raft.msgs)) {
-            this.messages = raft.msgs
+            this.messages = ArrayList(raft.msgs)
             raft.msgs = ArrayList()
         } else {
             this.messages = emptyList()
@@ -125,7 +126,7 @@ class Ready(val raft: Raft, val preSoftSt: SoftState, val preHardSt: HardState) 
 
         if (CollectionUtils.isNotEmpty(raft.readStates)) {
             this.readStates = raft.readStates
-            this.readStates!!.clear()
+            this.readStates.clear()
         }
 
         this.mustSync = mustSync(raft.hardState(), preHardSt, this.entries.size)

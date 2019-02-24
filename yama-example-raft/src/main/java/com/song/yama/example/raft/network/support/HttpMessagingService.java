@@ -88,7 +88,7 @@ public class HttpMessagingService implements MessagingService {
                     .build();
                 try {
                     try (Response response = okHttpClient.newCall(request).execute()) {
-                        log.info("Send message to host[{}] type:{}.", host, message.getType());
+                        log.debug("Send message to host[{}] type:{}.", host, message.getType());
                     }
                 } catch (IOException e) {
                     log.warn("Send message to remote failed,you may ignore this warning if the system is starting up."
