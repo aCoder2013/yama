@@ -48,6 +48,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -328,7 +329,7 @@ public class RaftNode {
                     Ready ready = raftNode.node.pullReady();
                     raftNode.commitLog.save(ready.getHardState(), ready.getCommittedEntries());
                     if (!Utils.INSTANCE.isEmptySnap(ready.getSnapshot())) {
-                        saveSnap(ready.getSnapshot());
+                        saveSnap(Objects.requireNonNull(ready.getSnapshot()));
                         raftNode.raftStorage.applySnapshot(ready.getSnapshot());
                         publishSnapshot(ready.getSnapshot());
                     }

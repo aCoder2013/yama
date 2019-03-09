@@ -140,7 +140,7 @@ open class Raft(private val raftConfiguration: RaftConfiguration) {
 
     private val scheduledExecutorService = ScheduledThreadPoolExecutor(1,
             ThreadFactoryBuilder().setNameFormat("raft-core-scheduled-pool")
-                    .setUncaughtExceptionHandler { t, e -> log.error("Uncaught exception :" + t, e) }
+                    .setUncaughtExceptionHandler { t, e -> log.error("Uncaught exception :$t", e) }
                     .build())
 
     init {
@@ -180,7 +180,7 @@ open class Raft(private val raftConfiguration: RaftConfiguration) {
                 throw IllegalStateException(
                         String.format("node %x is in both learner and peer list", learner))
             }
-            this.learnerPrs.put(learner, Progress(1, Inflight(this.maxInflight), true))
+            this.learnerPrs[learner] = Progress(1, Inflight(this.maxInflight), true)
             if (this.id == learner) {
                 this.isLearner = true
             }
