@@ -154,6 +154,7 @@ class MemoryRaftStorage : RaftStorage {
         this.lock.lock()
         try {
             if (i <= this.snapshot.metadata.index) {
+                log.info("i:$i,index:${this.snapshot.metadata.index}")
                 return Result.fail(ErrorCode.ErrSnapOutOfDate.code, ErrorCode.ErrSnapOutOfDate.desc,
                         Snapshot.getDefaultInstance())
             }

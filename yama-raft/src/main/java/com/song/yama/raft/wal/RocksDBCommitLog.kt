@@ -85,8 +85,10 @@ constructor(path: String) : CommitLog {
         }
         this.lock.lock()
         try {
+            val format = String.format(SNAPSHOT_KEY_PREFIX, snapshot.term, snapshot.index)
+            log.info("Write into rocksdb:{}.",format)
             this.keyValueStorage
-                    .put(String.format(SNAPSHOT_KEY_PREFIX, snapshot.term, snapshot.term).toByteArray(),
+                    .put(format.toByteArray(),
                             snapshot.toByteArray())
         } catch (e: IOException) {
             log.error("Save snapshot failed:" + snapshot.toString(), e)
@@ -100,11 +102,13 @@ constructor(path: String) : CommitLog {
     override fun readAll(snapshot: RaftProtoBuf.Snapshot): Result<RaftStateRecord> {
         val raftStateRecord = RaftStateRecord()
         try {
+            val format = String
+                    .format(SNAPSHOT_KEY_PREFIX, snapshot.metadata.term, snapshot.metadata.index)
+            log.info("Read from rocksdb:{}.", format)
             val data = this.keyValueStorage
-                    .get(String
-                            .format(SNAPSHOT_KEY_PREFIX, snapshot.metadata.term, snapshot.metadata.index)
+                    .get(format
                             .toByteArray())
-            if (data == null || data.size == 0) {
+            if (data == null || data.isEmpty()) {
                 return Result.fail("Snapshot not exist")
             }
             val snap = Snapshot.newBuilder().mergeFrom(data).build()
@@ -119,7 +123,7 @@ constructor(path: String) : CommitLog {
             val entries = ArrayList<Entry>()
             while (true) {
                 val entryBytes = this.keyValueStorage.get(String.format(ENTRY_KEY_PREFIX, term, ++index).toByteArray())
-                if (entryBytes == null || entryBytes.size == 0) {
+                if (entryBytes == null || entryBytes.isEmpty()) {
                     break
                 }
                 val e = Entry.newBuilder().mergeFrom(entryBytes).build()
@@ -170,10 +174,10 @@ constructor(path: String) : CommitLog {
 
         private val log = LoggerFactory.getLogger(RocksDBCommitLog::class.java)
 
-        private val ENTRY_KEY_PREFIX = "record-entry-%d-%d"
+        private const val ENTRY_KEY_PREFIX = "record-entry-%d-%d"
 
-        private val STATE_KEY_PREFIX = "record-state"
+        private const val STATE_KEY_PREFIX = "record-state"
 
-        private val SNAPSHOT_KEY_PREFIX = "record-snapshot-%d-%d"
+        private const val SNAPSHOT_KEY_PREFIX = "record-snapshot-%d-%d"
     }
 }

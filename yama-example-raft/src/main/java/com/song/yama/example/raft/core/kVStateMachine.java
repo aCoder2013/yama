@@ -58,6 +58,11 @@ public class kVStateMachine implements StateMachine {
     @Override
     public void loadSnapshot() {
         Snapshot snapshot = this.raftNode.getSnapshotStorage().load();
+       loadSnapshot(snapshot);
+    }
+
+    @Override
+    public void loadSnapshot(Snapshot snapshot) {
         if (snapshot == null) {
             return;
         }
@@ -66,8 +71,15 @@ public class kVStateMachine implements StateMachine {
         recoverFromSnapshot(snapshot.getData().toByteArray());
     }
 
+    @Override
+    public byte[] getSnapshot() {
+        String jsonString = JSONObject.toJSONString(this.kvStorage);
+        return jsonString.getBytes();
+    }
+
     private void recoverFromSnapshot(byte[] snapshot) {
         this.kvStorage = JSONObject.parseObject(snapshot, new TypeReference<ConcurrentMap<String, String>>() {
         }.getType());
+        log.info("Recover from snapshoot :{}.", this.kvStorage);
     }
 }

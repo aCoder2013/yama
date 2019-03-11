@@ -140,7 +140,7 @@ open class Raft(private val raftConfiguration: RaftConfiguration) {
 
     private val scheduledExecutorService = ScheduledThreadPoolExecutor(1,
             ThreadFactoryBuilder().setNameFormat("raft-core-scheduled-pool")
-                    .setUncaughtExceptionHandler { t, e -> log.error("Uncaught exception :$t", e) }
+                    .setUncaughtExceptionHandler { t, e -> log.error("Uncaught exception :" + t, e) }
                     .build())
 
     init {

@@ -54,6 +54,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
@@ -66,6 +67,10 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @Component
 public class RaftNode {
+
+    private static final long DEFAULT_SNAPSHOT_COUNT = 10;
+
+    private static final long SNAPSHOT_CATCHUP_ENTRIES_N = 10;
 
     /**
      * client ID for raft session
@@ -104,6 +109,8 @@ public class RaftNode {
     private long snapshotIndex;
 
     private long appliedIndex;
+
+    private long snapCount = DEFAULT_SNAPSHOT_COUNT;
 
     /* raft */
     @Getter
@@ -164,8 +171,9 @@ public class RaftNode {
             if (CollectionUtils.isNotEmpty(ents)) {
                 this.raftStorage.append(ents);
                 this.lastIndex = ents.get(ents.size() - 1).getIndex();
+            }else {
+                this.stateMachine.loadSnapshot(snapshot);
             }
-            //TODO: maybe trigger commit
         }
 
         List<Peer> rpeers = new ArrayList<>();
@@ -198,6 +206,7 @@ public class RaftNode {
         this.confState = snap.getData().getMetadata().getConfState();
         this.snapshotIndex = snap.getData().getMetadata().getIndex();
         this.appliedIndex = snap.getData().getMetadata().getIndex();
+        log.info("update appliedIndex:{}.", this.appliedIndex);
 
         this.scheduledExecutorService
             .scheduleAtFixedRate(this.node::tick, 100, 100,
@@ -250,7 +259,9 @@ public class RaftNode {
                 }
             }
 
+            // after commit, update appliedIndex
             this.appliedIndex = entry.getIndex();
+            log.info("Update appliedIndex:{}.", this.appliedIndex);
             if (entry.getIndex() == this.lastIndex) {
                 this.stateMachine.loadSnapshot();
             }
@@ -271,6 +282,7 @@ public class RaftNode {
         this.confState = snapshotToSave.getMetadata().getConfState();
         this.snapshotIndex = snapshotToSave.getMetadata().getIndex();
         this.appliedIndex = snapshotToSave.getMetadata().getIndex();
+        log.info("Update appliedIndex:{}.", this.appliedIndex);
         log.info("publishing snapshot at index {}", this.snapshotIndex);
     }
 
@@ -308,9 +320,37 @@ public class RaftNode {
         return committedEntries;
     }
 
-    @PostConstruct
-    public void close() {
+    private void maybeTriggerSnapshot() {
+        if (this.appliedIndex - this.snapshotIndex <= this.snapCount) {
+            return;
+        }
+
+        log.info("start snapshot [applied index: {} | last snapshot index: {}]", this.appliedIndex, this.snapshotIndex);
+        byte[] snapshotData = this.stateMachine.getSnapshot();
+        Result<Snapshot> snapshotResult = this.raftStorage
+            .createSnapshot(this.appliedIndex, this.confState, snapshotData);
+        if (snapshotResult.isFailure()) {
+            log.error("Failed to create snapshot:" + snapshotResult.getMessage());
+            return;
+        }
+        saveSnap(snapshotResult.getData());
+        long compactIndex = 1L;
+        if (this.appliedIndex > SNAPSHOT_CATCHUP_ENTRIES_N) {
+            compactIndex = this.appliedIndex - SNAPSHOT_CATCHUP_ENTRIES_N;
+        }
+        Result<Void> result = this.raftStorage.compact(compactIndex);
+        if (result.isFailure()) {
+            log.error("Failed to compact : " + result.getMessage());
+        }
+
+        log.info("compacted log at index :{}.", compactIndex);
+        this.snapshotIndex = this.appliedIndex;
+    }
+
+    @PreDestroy
+    public void close() throws IOException {
         running = false;
+        this.commitLog.close();
         this.taskThreadPool.shutdown();
     }
 
@@ -324,7 +364,7 @@ public class RaftNode {
 
         @Override
         public void run() {
-            while (true){
+            while (true) {
                 try {
                     Ready ready = raftNode.node.pullReady();
                     raftNode.commitLog.save(ready.getHardState(), ready.getCommittedEntries());
@@ -336,8 +376,7 @@ public class RaftNode {
                     raftNode.raftStorage.append(ready.getEntries());
                     raftNode.messagingService.send(ready.getMessages());
                     publishEntries(entriesToApply(ready.getCommittedEntries()));
-                    //TODO:when to trigger snapshot
-//                rc.maybeTriggerSnapshot()
+                    maybeTriggerSnapshot();
                     raftNode.node.advance(ready);
                 } catch (Exception e) {
                     log.error("Process ready failed", e);

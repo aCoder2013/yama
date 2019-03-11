@@ -110,7 +110,7 @@ public class RocksDBKeyValueStorage implements KeyValueStorage {
     @Override
     public void put(byte[] key, byte[] value) throws IOException {
         try {
-            this.rocksDB.put(optionDontSync, key, value);
+            this.rocksDB.put(optionSync, key, value);
         } catch (RocksDBException e) {
             throw new IOException("Failed to put into RocksDB.", e);
         }

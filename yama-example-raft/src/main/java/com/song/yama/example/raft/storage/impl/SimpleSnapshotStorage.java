@@ -50,6 +50,7 @@ public class SimpleSnapshotStorage implements SnapshotStorage {
         }
 
         String fileName = directory
+            .concat("/")
             .concat("snapshot_" + snapshot.getMetadata().getTerm() + "_" + snapshot.getMetadata().getIndex() + ".snap");
         Files.write(snapshot.toByteArray(), new File(fileName));
     }
@@ -58,7 +59,7 @@ public class SimpleSnapshotStorage implements SnapshotStorage {
     public Snapshot load() {
         List<String> names = names();
         for (String s : names) {
-            String path = directory.concat(s);
+            String path = directory.concat("/").concat(s);
             try {
                 byte[] data = Files.toByteArray(new File(path));
                 if (data != null && data.length > 0) {

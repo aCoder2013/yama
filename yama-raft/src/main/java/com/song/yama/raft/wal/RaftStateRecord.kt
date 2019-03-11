@@ -16,26 +16,8 @@
 
 package com.song.yama.raft.wal
 
-import com.song.yama.raft.protobuf.RaftProtoBuf.Entry
+import com.song.yama.raft.protobuf.RaftProtoBuf
 import com.song.yama.raft.protobuf.RaftProtoBuf.HardState
-import lombok.Data
+import java.util.*
 
-@Data
-class RaftStateRecord {
-
-    var hardState: HardState? = null
-        set(hardState) {
-            field = this.hardState
-        }
-
-    var ents: List<Entry>? = null
-        set(ents) {
-            field = this.ents
-        }
-
-    var metadata: ByteArray? = null
-        set(metadata) {
-            field = this.metadata
-        }
-
-}
+data class RaftStateRecord(var hardState: HardState? = HardState.getDefaultInstance(), var ents: List<RaftProtoBuf.Entry>? = Collections.emptyList(), var metadata: ByteArray? = ByteArray(0))

@@ -48,6 +48,9 @@ class DefaultNode : Node {
     constructor(configuration: RaftConfiguration) {
         checkArgument(configuration.id != 0L)
         this.raft = Raft(configuration)
+
+        this.preSoftState = this.raft!!.softState()
+        this.preHardState = HardState.newBuilder().build()
     }
 
     /**

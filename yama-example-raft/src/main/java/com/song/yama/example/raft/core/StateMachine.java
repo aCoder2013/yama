@@ -16,6 +16,8 @@
 
 package com.song.yama.example.raft.core;
 
+import com.song.yama.raft.protobuf.RaftProtoBuf.Snapshot;
+
 public interface StateMachine {
 
     void propose(String key, String value);
@@ -26,4 +28,7 @@ public interface StateMachine {
 
     void loadSnapshot();
 
+    void loadSnapshot(Snapshot snapshot);
+
+    byte[] getSnapshot();
 }

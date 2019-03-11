@@ -91,8 +91,7 @@ public class HttpMessagingService implements MessagingService {
                         log.debug("Send message to host[{}] type:{}.", host, message.getType());
                     }
                 } catch (IOException e) {
-                    log.warn("Send message to remote failed,you may ignore this warning if the system is starting up."
-                        + host, e);
+                    log.debug("Send message to remote failed,you may ignore this warning if the system is starting up." + host, e);
                 }
             });
         }
