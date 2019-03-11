@@ -234,8 +234,7 @@ public class RaftNode {
             } else if (entry.getType() == EntryType.EntryConfChange) {
                 try {
                     ConfChange confChange = ConfChange.newBuilder().mergeFrom(entry.getData().toByteArray()).build();
-                    this.node.applyConfChange(confChange);
-                    //TODO:support cluster node change
+                    this.confState = this.node.applyConfChange(confChange);
                     if (confChange.getType() == ConfChangeType.ConfChangeAddNode) {
                         if (confChange.hasContext()) {
                             String context = confChange.getContext().toStringUtf8();
