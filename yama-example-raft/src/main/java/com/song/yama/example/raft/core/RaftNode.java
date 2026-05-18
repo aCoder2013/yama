@@ -167,12 +167,24 @@ public class RaftNode {
             RaftStateRecord raftStateRecord = raftStateRecordResult.getData();
             this.raftStorage.applySnapshot(snapshot);
             this.raftStorage.setHardState(raftStateRecord.getHardState());
+            this.stateMachine.loadSnapshot(snapshot);
             List<Entry> ents = raftStateRecord.getEnts();
             if (CollectionUtils.isNotEmpty(ents)) {
                 this.raftStorage.append(ents);
                 this.lastIndex = ents.get(ents.size() - 1).getIndex();
-            }else {
-                this.stateMachine.loadSnapshot(snapshot);
+            }
+        } else {
+            Result<RaftStateRecord> raftStateRecordResult = this.commitLog.readAll();
+            if (raftStateRecordResult.isSuccess() && raftStateRecordResult.getData() != null) {
+                RaftStateRecord raftStateRecord = raftStateRecordResult.getData();
+                if (raftStateRecord.getHardState() != null) {
+                    this.raftStorage.setHardState(raftStateRecord.getHardState());
+                }
+                List<Entry> ents = raftStateRecord.getEnts();
+                if (CollectionUtils.isNotEmpty(ents)) {
+                    this.raftStorage.append(ents);
+                    this.lastIndex = ents.get(ents.size() - 1).getIndex();
+                }
             }
         }
 
@@ -189,7 +201,8 @@ public class RaftNode {
         raftConfiguration.setMaxSizePerMsg(1024 * 1024);
         raftConfiguration.setMaxInflightMsgs(256);
 //        raftConfiguration.setPreVote(true);
-        if (snapshot != null) {
+        boolean hasExistingState = snapshot != null || this.lastIndex > 0;
+        if (hasExistingState) {
             this.node = new DefaultNode(raftConfiguration);
         } else {
             List<Peer> startPeers = rpeers;
@@ -261,9 +274,6 @@ public class RaftNode {
             // after commit, update appliedIndex
             this.appliedIndex = entry.getIndex();
             log.info("Update appliedIndex:{}.", this.appliedIndex);
-            if (entry.getIndex() == this.lastIndex) {
-                this.stateMachine.loadSnapshot();
-            }
         });
     }
 
