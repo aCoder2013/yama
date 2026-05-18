@@ -52,4 +52,6 @@ interface CommitLog : Closeable {
     fun saveSnap(snapshot: WALRecord.Snapshot): Result<Void>
 
     fun readAll(snapshot: RaftProtoBuf.Snapshot): Result<RaftStateRecord>
+
+    fun readAll(): Result<RaftStateRecord>
 }

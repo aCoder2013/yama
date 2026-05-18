@@ -111,18 +111,44 @@ constructor(path: String) : CommitLog {
             if (data == null || data.isEmpty()) {
                 return Result.fail("Snapshot not exist")
             }
-            val snap = Snapshot.newBuilder().mergeFrom(data).build()
-            val term = snap.term
-            var index = snap.index
             val stateBytes = this.keyValueStorage.get(STATE_KEY_PREFIX.toByteArray())
             if (stateBytes == null || stateBytes.size == 0) {
                 return Result.fail("state not exist")
             }
             raftStateRecord.hardState = HardState.newBuilder().mergeFrom(stateBytes).build()
 
+            var index = snapshot.metadata.index
             val entries = ArrayList<Entry>()
             while (true) {
-                val entryBytes = this.keyValueStorage.get(String.format(ENTRY_KEY_PREFIX, term, ++index).toByteArray())
+                val entryBytes = this.keyValueStorage.get(String.format(ENTRY_KEY_PREFIX, ++index).toByteArray())
+                if (entryBytes == null || entryBytes.isEmpty()) {
+                    break
+                }
+                val e = Entry.newBuilder().mergeFrom(entryBytes).build()
+                entries.add(e)
+                this.enti = e.index
+            }
+            raftStateRecord.ents = entries
+        } catch (e: Exception) {
+            log.error("Read from kv storage failed", e)
+            return Result.fail("ReadAll failed :" + e.message)
+        }
+
+        return Result.success(raftStateRecord)
+    }
+
+    override fun readAll(): Result<RaftStateRecord> {
+        val raftStateRecord = RaftStateRecord()
+        try {
+            val stateBytes = this.keyValueStorage.get(STATE_KEY_PREFIX.toByteArray())
+            if (stateBytes != null && stateBytes.isNotEmpty()) {
+                raftStateRecord.hardState = HardState.newBuilder().mergeFrom(stateBytes).build()
+            }
+
+            var index = 0L
+            val entries = ArrayList<Entry>()
+            while (true) {
+                val entryBytes = this.keyValueStorage.get(String.format(ENTRY_KEY_PREFIX, ++index).toByteArray())
                 if (entryBytes == null || entryBytes.isEmpty()) {
                     break
                 }
@@ -160,7 +186,7 @@ constructor(path: String) : CommitLog {
 
     private fun saveEntry(entry: Entry): Result<Void> {
         try {
-            this.keyValueStorage.put(String.format(ENTRY_KEY_PREFIX, entry.term, entry.index).toByteArray(),
+            this.keyValueStorage.put(String.format(ENTRY_KEY_PREFIX, entry.index).toByteArray(),
                     entry.toByteArray())
         } catch (e: IOException) {
             log.error("Save entry failed :$entry", e)
@@ -174,7 +200,7 @@ constructor(path: String) : CommitLog {
 
         private val log = LoggerFactory.getLogger(RocksDBCommitLog::class.java)
 
-        private const val ENTRY_KEY_PREFIX = "record-entry-%d-%d"
+        private const val ENTRY_KEY_PREFIX = "record-entry-%d"
 
         private const val STATE_KEY_PREFIX = "record-state"
 
