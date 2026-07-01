@@ -148,9 +148,12 @@ public class RaftNode {
         this.id = this.raftProperties.getId();
         this.peers = new ArrayList<>(Arrays.asList(this.raftProperties.getServers().split(";")));
         this.join = this.raftProperties.isJoin();
-        this.waldir = String.format(System.getProperty("user.home") + "/yama/data/rocksdb/wal-%d", id);
+        String dataBase = StringUtils.isNotBlank(this.raftProperties.getDataDir())
+            ? this.raftProperties.getDataDir()
+            : System.getProperty("user.home") + "/yama/data";
+        this.waldir = String.format(dataBase + "/rocksdb/wal-%d", id);
         FileUtils.forceMkdir(new File(this.waldir));
-        this.snapdir = String.format(System.getProperty("user.home") + "/yama/data/snap-%d", id);
+        this.snapdir = String.format(dataBase + "/snap-%d", id);
         FileUtils.forceMkdir(new File(this.snapdir));
 
         this.snapshotStorage = new SimpleSnapshotStorage(snapdir);
@@ -184,6 +187,7 @@ public class RaftNode {
                 if (CollectionUtils.isNotEmpty(ents)) {
                     this.raftStorage.append(ents);
                     this.lastIndex = ents.get(ents.size() - 1).getIndex();
+                    replayEntriesToStateMachine(ents);
                 }
             }
         }
@@ -277,6 +281,17 @@ public class RaftNode {
         });
     }
 
+    private void replayEntriesToStateMachine(List<Entry> entries) {
+        entries.forEach(entry -> {
+            if (entry.getType() == EntryType.EntryNormal) {
+                if (entry.getData() != null && !entry.getData().isEmpty()) {
+                    this.stateMachine.processCommits(entry.getData().toStringUtf8());
+                }
+            }
+            this.appliedIndex = entry.getIndex();
+        });
+    }
+
     private void publishSnapshot(Snapshot snapshotToSave) {
         if (Utils.INSTANCE.isEmptySnap(snapshotToSave)) {
             return;
@@ -287,7 +302,7 @@ public class RaftNode {
                 snapshotToSave.getMetadata().getIndex(), this.appliedIndex));
         }
 
-        this.stateMachine.loadSnapshot();
+        this.stateMachine.loadSnapshot(snapshotToSave);
         this.confState = snapshotToSave.getMetadata().getConfState();
         this.snapshotIndex = snapshotToSave.getMetadata().getIndex();
         this.appliedIndex = snapshotToSave.getMetadata().getIndex();

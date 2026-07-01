@@ -32,4 +32,9 @@ public class RaftProperties {
     private String servers;
 
     private boolean join;
+
+    /**
+     * Optional base directory for WAL and snapshot data. Defaults to {@code ~/yama/data} when unset.
+     */
+    private String dataDir;
 }

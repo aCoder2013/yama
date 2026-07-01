@@ -58,19 +58,24 @@ public class SimpleSnapshotStorage implements SnapshotStorage {
     @Override
     public Snapshot load() {
         List<String> names = names();
+        Snapshot latest = null;
         for (String s : names) {
             String path = directory.concat("/").concat(s);
             try {
                 byte[] data = Files.toByteArray(new File(path));
                 if (data != null && data.length > 0) {
-                    return Snapshot.newBuilder().mergeFrom(data).build();
+                    Snapshot snapshot = Snapshot.newBuilder().mergeFrom(data).build();
+                    if (latest == null
+                        || snapshot.getMetadata().getIndex() > latest.getMetadata().getIndex()) {
+                        latest = snapshot;
+                    }
                 }
             } catch (IOException e) {
                 log.warn("Failed to read snap file:" + path, e);
                 throw new RaftException("Failed to read snap", e);
             }
         }
-        return null;
+        return latest;
     }
 
     @Override
