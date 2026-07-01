@@ -18,6 +18,27 @@ public final class RaftKvHttpClient {
         return restTemplate.getForObject(url(port, "/get?key=" + key), String.class);
     }
 
+    public boolean isReadUnavailable(int port, String key) {
+        try {
+            get(port, key);
+            return false;
+        } catch (org.springframework.web.client.HttpServerErrorException e) {
+            return e.getRawStatusCode() == 503;
+        }
+    }
+
+    public void waitForReadUnavailable(int port, String key, int attempts) throws InterruptedException {
+        for (int i = 0; i < attempts; i++) {
+            if (isReadUnavailable(port, key)) {
+                return;
+            }
+            Thread.sleep(100);
+        }
+        if (!isReadUnavailable(port, key)) {
+            throw new AssertionError("Expected read to be unavailable on port " + port + " for key " + key);
+        }
+    }
+
     public void waitFor(int port, String key, String expected, int attempts) throws InterruptedException {
         for (int i = 0; i < attempts; i++) {
             String actual = get(port, key);

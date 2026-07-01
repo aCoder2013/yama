@@ -156,6 +156,99 @@ public class RaftKvFaultIntegrationTest {
         }
     }
 
+    @Test
+    public void readIndexOnFollowerMatchesLeader() throws Exception {
+        cluster = RaftKvClusterHarness.startThreeNodeCluster();
+        int leaderId = cluster.leaderId();
+        cluster.putOnLeader(client, "color", "blue");
+
+        for (int id = 1; id <= 3; id++) {
+            if (id != leaderId) {
+                assertEquals("blue", client.get(cluster.node(id).getPort(), "color"));
+            }
+        }
+    }
+
+    @Test
+    public void readIndexAfterLeaderFailover() throws Exception {
+        cluster = RaftKvClusterHarness.startThreeNodeCluster();
+        int oldLeaderId = cluster.leaderId();
+        cluster.putOnLeader(client, "persist", "value");
+
+        cluster.stopNode(oldLeaderId);
+        Thread.sleep(3000);
+        cluster.waitForLeader(80);
+
+        int newLeaderPort = cluster.leaderPort();
+        assertEquals("value", client.get(newLeaderPort, "persist"));
+
+        for (int id = 1; id <= 3; id++) {
+            if (id != oldLeaderId) {
+                assertEquals("value", client.get(cluster.node(id).getPort(), "persist"));
+            }
+        }
+    }
+
+    @Test
+    public void isolatedOldLeaderReturns503OnRead() throws Exception {
+        cluster = RaftKvClusterHarness.startThreeNodeCluster();
+        int oldLeaderId = cluster.leaderId();
+        cluster.putOnLeader(client, "seed", "data");
+
+        FaultInjectionRegistry.isolate(oldLeaderId);
+        Thread.sleep(3000);
+        cluster.waitForLeader(80);
+
+        assertReadUnavailable(cluster.node(oldLeaderId).getPort(), "seed");
+        assertReadUnavailable(cluster.node(oldLeaderId).getPort(), "missing");
+    }
+
+    @Test
+    public void partitionHealRestoresLinearizableRead() throws Exception {
+        cluster = RaftKvClusterHarness.startThreeNodeCluster();
+        int leaderId = cluster.leaderId();
+        cluster.putOnLeader(client, "synced", "yes");
+
+        int isolatedId = 1;
+        while (isolatedId == leaderId) {
+            isolatedId++;
+        }
+
+        FaultInjectionRegistry.isolate(isolatedId);
+        client.put(cluster.leaderPort(), "heal-key", "heal-val");
+        Thread.sleep(1500);
+
+        client.waitForReadUnavailable(cluster.node(isolatedId).getPort(), "heal-key", 30);
+
+        FaultInjectionRegistry.recover();
+        Thread.sleep(2000);
+        client.waitFor(cluster.node(isolatedId).getPort(), "heal-key", "heal-val", 80);
+        assertEquals("yes", client.get(cluster.node(isolatedId).getPort(), "synced"));
+    }
+
+    @Test
+    public void isolatedFollowerCannotReadWhileLeaderCan() throws Exception {
+        cluster = RaftKvClusterHarness.startThreeNodeCluster();
+        int leaderId = cluster.leaderId();
+        cluster.putOnLeader(client, "base", "v0");
+
+        int followerId = 1;
+        while (followerId == leaderId) {
+            followerId++;
+        }
+
+        FaultInjectionRegistry.isolate(followerId);
+        client.put(cluster.leaderPort(), "blocked", "yes");
+        Thread.sleep(1500);
+
+        client.waitFor(cluster.leaderPort(), "blocked", "yes", 80);
+        client.waitForReadUnavailable(cluster.node(followerId).getPort(), "blocked", 30);
+
+        FaultInjectionRegistry.recover();
+        Thread.sleep(2000);
+        client.waitFor(cluster.node(followerId).getPort(), "blocked", "yes", 80);
+    }
+
     private int countLeaders() {
         int count = 0;
         for (int id = 1; id <= 3; id++) {
