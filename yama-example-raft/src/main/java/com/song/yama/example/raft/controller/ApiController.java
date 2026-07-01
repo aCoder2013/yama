@@ -17,8 +17,11 @@
 package com.song.yama.example.raft.controller;
 
 import com.song.yama.example.raft.core.StateMachine;
+import com.song.yama.raft.exception.RaftException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -35,8 +38,14 @@ public class ApiController {
 
     @GetMapping("/get")
     public @ResponseBody
-    String get(String key) {
-        return stateMachine.lookup(key);
+    ResponseEntity<String> get(String key) {
+        try {
+            return ResponseEntity.ok(stateMachine.lookup(key));
+        } catch (RaftException e) {
+            log.warn("Linearizable read failed for key {}: {}", key, e.getMessage());
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body("read unavailable: " + e.getMessage());
+        }
     }
 
     @GetMapping("/put")

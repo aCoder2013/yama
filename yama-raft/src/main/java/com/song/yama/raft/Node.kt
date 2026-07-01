@@ -77,6 +77,11 @@ interface Node {
     fun pullReady(): Ready
 
     /**
+     * Returns a Ready if there are pending updates, otherwise null.
+     */
+    fun tryPullReady(): Ready?
+
+    /**
      * Advance notifies the Node that the application has saved progress up to the last Ready. It prepares the node to
      * return the next available Ready.
      *

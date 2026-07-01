@@ -125,8 +125,8 @@ class Ready(val raft: Raft, val preSoftSt: SoftState, val preHardSt: HardState) 
         }
 
         if (CollectionUtils.isNotEmpty(raft.readStates)) {
-            this.readStates = raft.readStates
-            this.readStates.clear()
+            this.readStates = ArrayList(raft.readStates)
+            raft.readStates.clear()
         }
 
         this.mustSync = mustSync(raft.hardState(), preHardSt, this.entries.size)

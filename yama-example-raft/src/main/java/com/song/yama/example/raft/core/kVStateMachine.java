@@ -45,7 +45,7 @@ public class kVStateMachine implements StateMachine {
 
     @Override
     public String lookup(String key) {
-        return this.kvStorage.get(key);
+        return this.raftNode.linearizableRead(() -> this.kvStorage.get(key));
     }
 
     @Override
