@@ -28,6 +28,7 @@ import com.song.yama.raft.Node;
 import com.song.yama.raft.Peer;
 import com.song.yama.raft.RaftConfiguration;
 import com.song.yama.raft.RaftStorage;
+import com.song.yama.raft.ReadState;
 import com.song.yama.raft.Ready;
 import com.song.yama.raft.exception.RaftException;
 import com.song.yama.raft.protobuf.RaftProtoBuf.ConfChange;
@@ -44,15 +45,24 @@ import com.song.yama.raft.wal.RaftStateRecord;
 import com.song.yama.raft.wal.RocksDBCommitLog;
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.function.Supplier;
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import lombok.Getter;
@@ -71,6 +81,8 @@ public class RaftNode {
     private static final long DEFAULT_SNAPSHOT_COUNT = 10;
 
     private static final long SNAPSHOT_CATCHUP_ENTRIES_N = 10;
+
+    private static final long READ_INDEX_TIMEOUT_MS = 5000L;
 
     /**
      * client ID for raft session
@@ -108,7 +120,17 @@ public class RaftNode {
 
     private long snapshotIndex;
 
-    private long appliedIndex;
+    private volatile long appliedIndex;
+
+    private final Object appliedIndexLock = new Object();
+
+    private final Object raftLock = new Object();
+
+    private final BlockingQueue<Message> inboundMessages = new LinkedBlockingQueue<>();
+
+    private final BlockingQueue<byte[]> pendingReadIndexRequests = new LinkedBlockingQueue<>();
+
+    private final ConcurrentMap<String, CompletableFuture<Long>> pendingReadIndexes = new ConcurrentHashMap<>();
 
     private long snapCount = DEFAULT_SNAPSHOT_COUNT;
 
@@ -226,15 +248,94 @@ public class RaftNode {
         log.info("update appliedIndex:{}.", this.appliedIndex);
 
         this.scheduledExecutorService
-            .scheduleAtFixedRate(this.node::tick, 100, 100,
-                TimeUnit.MILLISECONDS);
+            .scheduleAtFixedRate(() -> {
+                synchronized (this.raftLock) {
+                    this.node.tick();
+                }
+                this.inboundMessages.offer(Message.getDefaultInstance());
+            }, 100, 100, TimeUnit.MILLISECONDS);
 
         this.running = true;
         this.taskThreadPool.submit(new ReadyProcessor(this));
     }
 
     public void processMessage(Message message) {
-        this.node.step(message);
+        this.inboundMessages.offer(message);
+    }
+
+    /**
+     * Perform a linearizable read by issuing readIndex and waiting until the state machine
+     * has applied entries up to the confirmed read index.
+     */
+    public <T> T linearizableRead(Supplier<T> readAction) {
+        byte[] requestCtx = UUID.randomUUID().toString().getBytes(StandardCharsets.UTF_8);
+        String requestKey = new String(requestCtx, StandardCharsets.UTF_8);
+        CompletableFuture<Long> readIndexFuture = new CompletableFuture<>();
+        pendingReadIndexes.put(requestKey, readIndexFuture);
+        this.pendingReadIndexRequests.offer(requestCtx);
+        this.inboundMessages.offer(Message.getDefaultInstance());
+        try {
+            long readIndex = readIndexFuture.get(READ_INDEX_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+            waitUntilApplied(readIndex);
+            return readAction.get();
+        } catch (TimeoutException e) {
+            throw new RaftException("ReadIndex timed out waiting for quorum confirmation", e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RaftException("ReadIndex interrupted", e);
+        } catch (java.util.concurrent.ExecutionException e) {
+            throw new RaftException("ReadIndex failed", e.getCause());
+        } finally {
+            pendingReadIndexes.remove(requestKey);
+        }
+    }
+
+    private void drainRaftWork() {
+        Message message;
+        while ((message = this.inboundMessages.poll()) != null) {
+            if (message.getSerializedSize() > 0) {
+                this.node.step(message);
+            }
+        }
+        byte[] requestCtx;
+        while ((requestCtx = this.pendingReadIndexRequests.poll()) != null) {
+            this.node.readIndex(requestCtx);
+        }
+    }
+
+    private void waitUntilApplied(long readIndex) throws InterruptedException, TimeoutException {
+        long deadlineNanos = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(READ_INDEX_TIMEOUT_MS);
+        synchronized (this.appliedIndexLock) {
+            while (this.appliedIndex < readIndex) {
+                long remainingNanos = deadlineNanos - System.nanoTime();
+                if (remainingNanos <= 0) {
+                    throw new TimeoutException(
+                        "Timed out waiting for appliedIndex >= " + readIndex + ", current=" + this.appliedIndex);
+                }
+                long waitMillis = remainingNanos / 1_000_000L;
+                int waitNanos = (int) (remainingNanos % 1_000_000L);
+                this.appliedIndexLock.wait(waitMillis, waitNanos);
+            }
+        }
+    }
+
+    private void notifyAppliedIndexUpdated() {
+        synchronized (this.appliedIndexLock) {
+            this.appliedIndexLock.notifyAll();
+        }
+    }
+
+    private void processReadStates(List<ReadState> readStates) {
+        if (CollectionUtils.isEmpty(readStates)) {
+            return;
+        }
+        for (ReadState readState : readStates) {
+            String requestKey = new String(readState.getRequestCtx(), StandardCharsets.UTF_8);
+            CompletableFuture<Long> future = pendingReadIndexes.get(requestKey);
+            if (future != null) {
+                future.complete(readState.getIndex());
+            }
+        }
     }
 
     private void publishEntries(List<Entry> entries) {
@@ -278,6 +379,7 @@ public class RaftNode {
             // after commit, update appliedIndex
             this.appliedIndex = entry.getIndex();
             log.info("Update appliedIndex:{}.", this.appliedIndex);
+            notifyAppliedIndexUpdated();
         });
     }
 
@@ -289,6 +391,7 @@ public class RaftNode {
                 }
             }
             this.appliedIndex = entry.getIndex();
+            notifyAppliedIndexUpdated();
         });
     }
 
@@ -307,6 +410,7 @@ public class RaftNode {
         this.snapshotIndex = snapshotToSave.getMetadata().getIndex();
         this.appliedIndex = snapshotToSave.getMetadata().getIndex();
         log.info("Update appliedIndex:{}.", this.appliedIndex);
+        notifyAppliedIndexUpdated();
         log.info("publishing snapshot at index {}", this.snapshotIndex);
     }
 
@@ -396,20 +500,34 @@ public class RaftNode {
         public void run() {
             while (raftNode.running) {
                 try {
-                    Ready ready = raftNode.node.pullReady();
-                    raftNode.commitLog.save(ready.getHardState(), ready.getCommittedEntries());
-                    if (!Utils.INSTANCE.isEmptySnap(ready.getSnapshot())) {
-                        saveSnap(Objects.requireNonNull(ready.getSnapshot()));
-                        raftNode.raftStorage.applySnapshot(ready.getSnapshot());
-                        publishSnapshot(ready.getSnapshot());
+                    Ready ready;
+                    synchronized (raftNode.raftLock) {
+                        raftNode.drainRaftWork();
+                        ready = raftNode.node.tryPullReady();
+                        if (ready == null) {
+                            continue;
+                        }
+                        raftNode.commitLog.save(ready.getHardState(), ready.getCommittedEntries());
+                        if (!Utils.INSTANCE.isEmptySnap(ready.getSnapshot())) {
+                            saveSnap(Objects.requireNonNull(ready.getSnapshot()));
+                            raftNode.raftStorage.applySnapshot(ready.getSnapshot());
+                            publishSnapshot(ready.getSnapshot());
+                        }
+                        raftNode.raftStorage.append(ready.getEntries());
+                        raftNode.messagingService.send(ready.getMessages());
+                        processReadStates(ready.getReadStates());
+                        publishEntries(entriesToApply(ready.getCommittedEntries()));
+                        maybeTriggerSnapshot();
+                        raftNode.node.advance(ready);
                     }
-                    raftNode.raftStorage.append(ready.getEntries());
-                    raftNode.messagingService.send(ready.getMessages());
-                    publishEntries(entriesToApply(ready.getCommittedEntries()));
-                    maybeTriggerSnapshot();
-                    raftNode.node.advance(ready);
                 } catch (Exception e) {
                     log.error("Process ready failed", e);
+                }
+                try {
+                    Thread.sleep(1);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
                 }
             }
         }

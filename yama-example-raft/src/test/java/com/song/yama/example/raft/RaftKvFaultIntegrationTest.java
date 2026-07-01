@@ -2,13 +2,14 @@ package com.song.yama.example.raft;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNull;
+import static org.junit.Assert.fail;
 
 import com.song.yama.example.raft.support.FaultInjectionRegistry;
 import com.song.yama.example.raft.support.RaftKvClusterHarness;
 import com.song.yama.example.raft.support.RaftKvHttpClient;
 import org.junit.After;
 import org.junit.Test;
+import org.springframework.web.client.HttpServerErrorException;
 
 /**
  * Integration fault tests using real Spring Boot nodes and HTTP APIs.
@@ -99,8 +100,8 @@ public class RaftKvFaultIntegrationTest {
         Thread.sleep(1500);
 
         assertEquals("newval", client.get(cluster.leaderPort(), "newkey"));
-        assertNull(client.get(cluster.node(isolatedId).getPort(), "newkey"));
-        assertEquals("yes", client.get(cluster.node(isolatedId).getPort(), "synced"));
+        assertReadUnavailable(cluster.node(isolatedId).getPort(), "newkey");
+        assertReadUnavailable(cluster.node(isolatedId).getPort(), "synced");
 
         FaultInjectionRegistry.recover();
         Thread.sleep(2000);
@@ -163,5 +164,14 @@ public class RaftKvFaultIntegrationTest {
             }
         }
         return count;
+    }
+
+    private void assertReadUnavailable(int port, String key) {
+        try {
+            client.get(port, key);
+            fail("Expected linearizable read to fail on isolated node for key: " + key);
+        } catch (HttpServerErrorException e) {
+            assertEquals(503, e.getRawStatusCode());
+        }
     }
 }

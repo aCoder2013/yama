@@ -137,12 +137,21 @@ class DefaultNode : Node {
     @Throws(InterruptedException::class)
     override fun pullReady(): Ready {
         while (true) {
-            val ready = Ready(raft!!, this.preSoftState!!, this.preHardState!!)
-            if (ready.containsUpdates()) {
+            val ready = tryPullReady()
+            if (ready != null) {
                 return ready
             }
             Thread.sleep(1)
             log.info("Sleep!!")
+        }
+    }
+
+    override fun tryPullReady(): Ready? {
+        val ready = Ready(raft!!, this.preSoftState!!, this.preHardState!!)
+        return if (ready.containsUpdates()) {
+            ready
+        } else {
+            null
         }
     }
 
@@ -250,6 +259,7 @@ class DefaultNode : Node {
     override fun readIndex(rctx: ByteArray) {
         this.raft!!.step(Message.newBuilder()
                 .setType(MessageType.MsgReadIndex)
+                .setFrom(this.raft!!.id)
                 .addEntries(Entry.newBuilder()
                         .setData(ByteString.copyFrom(rctx))
                         .build())
