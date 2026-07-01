@@ -374,8 +374,14 @@ public class RaftNode {
     @PreDestroy
     public void close() throws IOException {
         running = false;
+        this.scheduledExecutorService.shutdownNow();
+        this.taskThreadPool.shutdownNow();
+        try {
+            this.taskThreadPool.awaitTermination(5, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
         this.commitLog.close();
-        this.taskThreadPool.shutdown();
     }
 
     public class ReadyProcessor implements Runnable {
@@ -388,7 +394,7 @@ public class RaftNode {
 
         @Override
         public void run() {
-            while (true) {
+            while (raftNode.running) {
                 try {
                     Ready ready = raftNode.node.pullReady();
                     raftNode.commitLog.save(ready.getHardState(), ready.getCommittedEntries());

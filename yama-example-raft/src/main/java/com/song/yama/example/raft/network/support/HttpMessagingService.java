@@ -34,10 +34,12 @@ import okhttp3.RequestBody;
 import okhttp3.Response;
 import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
+@Profile("!integration-fault-test")
 public class HttpMessagingService implements MessagingService {
 
     public static final MediaType JSON

@@ -29,6 +29,7 @@ Client ──GET /put,/get──► ApiController
 | WAL 持久化 | `yama-raft` | `RocksDBCommitLogRecoveryTest` | 空 WAL、跨 term 条目、快照+增量条目、index-only key |
 | KV 状态机 | `yama-example-raft` | `KVStateMachineTest` | JSON 编解码、快照往返、ConfChange 忽略 |
 | 多节点故障 | `yama-example-raft` | `KvRaftFaultTest` | 复制、分区、Leader 切换、少数派、日志收敛 |
+| **集成故障（HTTP）** | `yama-example-raft` | `RaftKvFaultIntegrationTest` | 真实三节点 Spring Boot、Leader 宕机、网络分区、Follower 追赶 |
 | 端到端重启 | `yama-example-raft` | `RaftKvRecoveryIntegrationTest` | 仅 WAL 重启、快照后重启 |
 | Raft 协议 | `yama-raft` | `RaftFaultInjectionTest` | 非对称丢包、少数派、旧 Leader 重入（库层） |
 
@@ -74,6 +75,29 @@ Leader → Follower 链路断开时，新写入只在 Leader 本地提交（若�
 
 写入 > 10 条触发快照后重启，快照基础数据 + WAL 增量条目均正确恢复。
 
+## 集成故障测试（`RaftKvFaultIntegrationTest`）
+
+基于真实 Spring Boot 三节点集群，通过 HTTP API 验证故障行为。测试基础设施：
+
+- `RaftKvClusterHarness` — 启动 3 个 Spring Boot 实例，动态分配端口
+- `FaultInjectingHttpMessagingService` — 可注入网络丢包/隔离（`integration-fault-test` profile）
+- `FaultInjectionRegistry` — 跨节点共享的故障规则
+
+| 用例 | 场景 |
+|------|------|
+| `threeNodeHttpReplication` | HTTP 写入 Leader，三节点 GET 一致 |
+| `writeOnLeaderReadableOnFollowers` | Follower 可读 Leader 写入 |
+| `leaderCrashFailoverAndContinueWrite` | 停止 Leader 进程，剩余节点选主并继续写入 |
+| `crashedFollowerCatchesUpOnRestart` | Follower 宕机期间写入，重启后追赶日志 |
+| `networkPartitionMakesFollowerStaleUntilHeal` | 隔离 Follower，验证过期读，恢复后收敛 |
+| `isolatedOldLeaderMajorityReElects` | 隔离旧 Leader，多数派重新选主 |
+| `manyWritesConsistentAcrossThreeNodes` | 12 次 HTTP 写入三节点一致 |
+
+```bash
+# 仅集成故障测试（约 1 分钟，每个用例独立 JVM）
+mvn test -pl yama-example-raft -Dtest=RaftKvFaultIntegrationTest
+```
+
 ## 测试基础设施
 
 ### `KvRaftCluster`（内存模拟）
@@ -113,6 +137,7 @@ com.song.yama.raft.servers=127.0.0.1:9001
 |------|------|------|
 | 无快照重启时状态机未同步回放 WAL | `RaftNode.start()` | 新增 `replayEntriesToStateMachine()`，启动时直接回放 |
 | `publishSnapshot` 从磁盘重载而非使用传入快照 | `RaftNode.publishSnapshot()` | 改为 `loadSnapshot(snapshotToSave)` |
+| 节点关闭时 RocksDB JNI 崩溃 | `RaftNode.close()` | 先停止线程池再关闭 WAL；ReadyProcessor 检查 `running` |
 | 多快照文件时加载旧快照 | `SimpleSnapshotStorage.load()` | 按 index 取最新快照 |
 | 测试数据目录不可配置 | `RaftProperties` | 新增 `com.song.yama.raft.data-dir` 配置项 |
 
@@ -168,7 +193,9 @@ mvn spring-boot:run -pl yama-example-raft \
 
 | 文件 | 说明 |
 |------|------|
-| `yama-example-raft/.../KvRaftFaultTest.java` | 多节点故障测试 |
+| `yama-example-raft/.../KvRaftFaultTest.java` | 多节点故障测试（内存模拟） |
+| `yama-example-raft/.../RaftKvFaultIntegrationTest.java` | 集成故障测试（真实 HTTP 三节点） |
+| `yama-example-raft/.../support/RaftKvClusterHarness.java` | 三节点 Spring Boot 集群管理 |
 | `yama-example-raft/.../RaftKvRecoveryIntegrationTest.java` | 重启恢复集成测试 |
 | `yama-example-raft/.../support/KvRaftCluster.java` | 内存集群模拟器 |
 | `yama-raft/.../RocksDBCommitLogRecoveryTest.kt` | WAL 恢复单元测试 |
