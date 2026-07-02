@@ -2,6 +2,8 @@ package com.song.yama.example.raft.support;
 
 import static org.junit.Assert.assertEquals;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import org.springframework.web.client.RestTemplate;
 
 public final class RaftKvHttpClient {
@@ -9,13 +11,13 @@ public final class RaftKvHttpClient {
     private final RestTemplate restTemplate = new RestTemplate();
 
     public void put(int port, String key, String value) throws InterruptedException {
-        String body = restTemplate.getForObject(url(port, "/put?key=" + key + "&value=" + value), String.class);
+        String body = restTemplate.getForObject(url(port, "/put?key=" + encode(key) + "&value=" + encode(value)), String.class);
         assertEquals("ok", body);
         waitFor(port, key, value, 50);
     }
 
     public String get(int port, String key) {
-        return restTemplate.getForObject(url(port, "/get?key=" + key), String.class);
+        return restTemplate.getForObject(url(port, "/get?key=" + encode(key)), String.class);
     }
 
     public boolean isReadUnavailable(int port, String key) {
@@ -52,5 +54,13 @@ public final class RaftKvHttpClient {
 
     private static String url(int port, String path) {
         return "http://127.0.0.1:" + port + "/yama/raft/api/v1" + path;
+    }
+
+    private static String encode(String value) {
+        try {
+            return URLEncoder.encode(value, StandardCharsets.UTF_8.name());
+        } catch (java.io.UnsupportedEncodingException e) {
+            throw new IllegalStateException(e);
+        }
     }
 }

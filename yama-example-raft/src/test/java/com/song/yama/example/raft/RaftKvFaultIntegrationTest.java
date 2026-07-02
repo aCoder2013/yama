@@ -5,6 +5,7 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.fail;
 
 import com.song.yama.example.raft.support.FaultInjectionRegistry;
+import com.song.yama.example.raft.support.JsonKvTestValues;
 import com.song.yama.example.raft.support.RaftKvClusterHarness;
 import com.song.yama.example.raft.support.RaftKvHttpClient;
 import org.junit.After;
@@ -247,6 +248,44 @@ public class RaftKvFaultIntegrationTest {
         FaultInjectionRegistry.recover();
         Thread.sleep(2000);
         client.waitFor(cluster.node(followerId).getPort(), "blocked", "yes", 80);
+    }
+
+    @Test
+    public void specialJsonValuesReplicateOverHttp() throws Exception {
+        cluster = RaftKvClusterHarness.startThreeNodeCluster();
+        cluster.putOnLeader(client, "unicode", JsonKvTestValues.UNICODE_VALUE);
+        cluster.putOnLeader(client, "quoted", JsonKvTestValues.QUOTED_VALUE);
+        cluster.putOnLeader(client, "escaped", JsonKvTestValues.ESCAPED_VALUE);
+        cluster.putOnLeader(client, "json-like", JsonKvTestValues.JSON_LIKE_VALUE);
+
+        cluster.assertKvConsistent(client, "unicode", JsonKvTestValues.UNICODE_VALUE);
+        cluster.assertKvConsistent(client, "quoted", JsonKvTestValues.QUOTED_VALUE);
+        cluster.assertKvConsistent(client, "escaped", JsonKvTestValues.ESCAPED_VALUE);
+        cluster.assertKvConsistent(client, "json-like", JsonKvTestValues.JSON_LIKE_VALUE);
+    }
+
+    @Test
+    public void specialJsonValuesConvergeAfterPartition() throws Exception {
+        cluster = RaftKvClusterHarness.startThreeNodeCluster();
+        int leaderId = cluster.leaderId();
+        cluster.putOnLeader(client, "seed", "v0");
+
+        int isolatedId = 1;
+        while (isolatedId == leaderId) {
+            isolatedId++;
+        }
+
+        FaultInjectionRegistry.isolate(isolatedId);
+        client.put(cluster.leaderPort(), "unicode", JsonKvTestValues.UNICODE_VALUE);
+        client.put(cluster.leaderPort(), "escaped", JsonKvTestValues.ESCAPED_VALUE);
+        Thread.sleep(1500);
+
+        client.waitForReadUnavailable(cluster.node(isolatedId).getPort(), "unicode", 30);
+
+        FaultInjectionRegistry.recover();
+        Thread.sleep(2000);
+        cluster.assertKvConsistent(client, "unicode", JsonKvTestValues.UNICODE_VALUE);
+        cluster.assertKvConsistent(client, "escaped", JsonKvTestValues.ESCAPED_VALUE);
     }
 
     private int countLeaders() {
