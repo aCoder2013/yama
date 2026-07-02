@@ -2,22 +2,22 @@ package com.song.yama.example.raft.support;
 
 import static org.junit.Assert.assertEquals;
 
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
+import java.net.URI;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 
 public final class RaftKvHttpClient {
 
     private final RestTemplate restTemplate = new RestTemplate();
 
     public void put(int port, String key, String value) throws InterruptedException {
-        String body = restTemplate.getForObject(url(port, "/put?key=" + encode(key) + "&value=" + encode(value)), String.class);
+        String body = restTemplate.getForObject(putUri(port, key, value), String.class);
         assertEquals("ok", body);
         waitFor(port, key, value, 50);
     }
 
     public String get(int port, String key) {
-        return restTemplate.getForObject(url(port, "/get?key=" + encode(key)), String.class);
+        return restTemplate.getForObject(getUri(port, key), String.class);
     }
 
     public boolean isReadUnavailable(int port, String key) {
@@ -52,15 +52,28 @@ public final class RaftKvHttpClient {
         assertEquals(expected, get(port, key));
     }
 
-    private static String url(int port, String path) {
-        return "http://127.0.0.1:" + port + "/yama/raft/api/v1" + path;
+    private static URI putUri(int port, String key, String value) {
+        return UriComponentsBuilder
+            .fromHttpUrl(baseUrl(port))
+            .path("/put")
+            .queryParam("key", key)
+            .queryParam("value", value)
+            .build()
+            .encode()
+            .toUri();
     }
 
-    private static String encode(String value) {
-        try {
-            return URLEncoder.encode(value, StandardCharsets.UTF_8.name());
-        } catch (java.io.UnsupportedEncodingException e) {
-            throw new IllegalStateException(e);
-        }
+    private static URI getUri(int port, String key) {
+        return UriComponentsBuilder
+            .fromHttpUrl(baseUrl(port))
+            .path("/get")
+            .queryParam("key", key)
+            .build()
+            .encode()
+            .toUri();
+    }
+
+    private static String baseUrl(int port) {
+        return "http://127.0.0.1:" + port + "/yama/raft/api/v1";
     }
 }
