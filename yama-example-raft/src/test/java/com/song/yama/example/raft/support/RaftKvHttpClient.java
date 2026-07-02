@@ -43,9 +43,15 @@ public final class RaftKvHttpClient {
 
     public void waitFor(int port, String key, String expected, int attempts) throws InterruptedException {
         for (int i = 0; i < attempts; i++) {
-            String actual = get(port, key);
-            if (expected == null ? actual == null : expected.equals(actual)) {
-                return;
+            try {
+                String actual = get(port, key);
+                if (expected == null ? actual == null : expected.equals(actual)) {
+                    return;
+                }
+            } catch (org.springframework.web.client.HttpServerErrorException e) {
+                if (e.getRawStatusCode() != 503) {
+                    throw e;
+                }
             }
             Thread.sleep(100);
         }
