@@ -1,0 +1,6 @@
+/store/
+/cluster-ports.edn
+/target/
+.lein-*
+.nrepl-port
+*.log
