@@ -29,6 +29,7 @@ Client ──GET /put,/get──► ApiController
 | WAL 持久化 | `yama-raft` | `RocksDBCommitLogRecoveryTest` | 空 WAL、跨 term 条目、快照+增量条目、index-only key |
 | KV 状态机 | `yama-example-raft` | `KVStateMachineTest` | JSON 编解码、快照往返、ConfChange 忽略 |
 | 多节点故障 | `yama-example-raft` | `KvRaftFaultTest` | 复制、分区、Leader 切换、少数派、日志收敛 |
+| **JSON 故障** | `yama-example-raft` | `JsonKvRaftFaultTest` | Unicode/转义/类 JSON 值在分区、Leader 切换下的一致性 |
 | **集成故障（HTTP）** | `yama-example-raft` | `RaftKvFaultIntegrationTest` | 真实三节点 Spring Boot、Leader 宕机、网络分区、Follower 追赶 |
 | 端到端重启 | `yama-example-raft` | `RaftKvRecoveryIntegrationTest` | 仅 WAL 重启、快照后重启 |
 | Raft 协议 | `yama-raft` | `RaftFaultInjectionTest` | 非对称丢包、少数派、旧 Leader 重入（库层） |
@@ -92,6 +93,8 @@ Leader → Follower 链路断开时，新写入只在 Leader 本地提交（若�
 | `networkPartitionMakesFollowerStaleUntilHeal` | 隔离 Follower，验证过期读，恢复后收敛 |
 | `isolatedOldLeaderMajorityReElects` | 隔离旧 Leader，多数派重新选主 |
 | `manyWritesConsistentAcrossThreeNodes` | 12 次 HTTP 写入三节点一致 |
+| `specialJsonValuesReplicateOverHttp` | HTTP 写入 Unicode/转义/类 JSON 值，三节点一致 |
+| `specialJsonValuesConvergeAfterPartition` | 分区期间写入特殊 JSON 值，恢复后收敛 |
 
 ```bash
 # 仅集成故障测试（约 1 分钟，每个用例独立 JVM）
@@ -148,7 +151,7 @@ com.song.yama.raft.servers=127.0.0.1:9001
 mvn test
 
 # 仅 KV 故障测试
-mvn test -pl yama-example-raft -Dtest=KvRaftFaultTest,KVStateMachineTest,RaftKvRecoveryIntegrationTest
+mvn test -pl yama-example-raft -Dtest=KvRaftFaultTest,JsonKvRaftFaultTest,KVStateMachineTest,RaftKvRecoveryIntegrationTest
 
 # 仅 WAL 恢复测试
 mvn test -pl yama-raft -Dtest=RocksDBCommitLogRecoveryTest
@@ -194,6 +197,7 @@ mvn spring-boot:run -pl yama-example-raft \
 | 文件 | 说明 |
 |------|------|
 | `yama-example-raft/.../KvRaftFaultTest.java` | 多节点故障测试（内存模拟） |
+| `yama-example-raft/.../JsonKvRaftFaultTest.java` | JSON 编码值故障测试（内存模拟） |
 | `yama-example-raft/.../RaftKvFaultIntegrationTest.java` | 集成故障测试（真实 HTTP 三节点） |
 | `yama-example-raft/.../support/RaftKvClusterHarness.java` | 三节点 Spring Boot 集群管理 |
 | `yama-example-raft/.../RaftKvRecoveryIntegrationTest.java` | 重启恢复集成测试 |
